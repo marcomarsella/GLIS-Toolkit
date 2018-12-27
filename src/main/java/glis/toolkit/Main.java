@@ -1,39 +1,36 @@
 package glis.toolkit;
 
-import java.util.List;
+import org.apache.commons.configuration2.builder.fluent.Configurations;
+import org.sql2o.Connection;
+import org.sql2o.Sql2o;
+
+import java.io.File;
 
 public class Main {
 
-    private static String CR   = System.lineSeparator();
-    public static String USAGE = String.format(
-            "usage: toolkit <command>%1$s" +
-            "where <command> is:%1$s" +
-            "-r or --register to register a PGRFA%1$s" +
-            "-h or --help to print a help message",
-            System.lineSeparator());
+    public static final String CONFIG_PATH = "config.properties";
 
-    // toolkit -register
     public static void main(String[] args) {
         try {
-            if (args.length == 1 && List.of("--register", "-r").contains(args[0])) {
+            var config   = new Configurations().properties(new File(CONFIG_PATH));
+            var url      = config.getString("db.url");
+            var username = config.getString("db.username");
+            var password = config.getString("db.password");
+            var db       = new Sql2o(url, username, password);
 
-                // TODO
-            }
-            if (args.length == 1 && List.of("--help", "-h").contains(args[0])) {
-                System.out.println(USAGE);
-            }
-            else {
-                System.err.println(USAGE);
-                System.exit(1);
+            try (Connection conn = db.open()) {
+                var pgrfas = conn.createQuery("select * from pgrfas where operation=:operation and processed=:processed")
+                        .addParameter("operation", "register")
+                        .addParameter("processed", "n")
+                        .executeAndFetchTable().asList();
+
+                for (var pgrfa: pgrfas) {
+                    System.out.println(pgrfa);
+                }
             }
         }
         catch (Exception e) {
             e.printStackTrace();
         }
-    }
-
-    private static void register() {
-
-        // TODO
     }
 }
