@@ -15,6 +15,24 @@
     </properties>
 
     <dependencies>
+        <!-- database micro-orm and jdbc drivers -->
+        <dependency>
+            <groupId>org.sql2o</groupId>
+            <artifactId>sql2o</artifactId>
+            <version>1.6.0</version>
+        </dependency>
+        <dependency>
+            <groupId>mysql</groupId>
+            <artifactId>mysql-connector-java</artifactId>
+            <version>8.0.13</version>
+        </dependency>
+        <!-- xml/json processing -->
+        <dependency>
+            <groupId>org.json</groupId>
+            <artifactId>json</artifactId>
+            <version>20180813</version>
+        </dependency>
+        <!-- apache commons utilities -->
         <dependency>
             <groupId>commons-io</groupId>
             <artifactId>commons-io</artifactId>
@@ -30,16 +48,7 @@
             <artifactId>commons-beanutils</artifactId>
             <version>1.9.3</version>
         </dependency>
-        <dependency>
-            <groupId>org.sql2o</groupId>
-            <artifactId>sql2o</artifactId>
-            <version>1.6.0</version>
-        </dependency>
-        <dependency>
-            <groupId>mysql</groupId>
-            <artifactId>mysql-connector-java</artifactId>
-            <version>8.0.13</version>
-        </dependency>
+        <!-- unit tests with JUnit 5 -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-api</artifactId>
@@ -57,7 +66,7 @@
     <build>
         <pluginManagement>
             <plugins>
-
+                <!-- to specify java version -->
                 <plugin>
                     <artifactId>maven-compiler-plugin</artifactId>
                     <configuration>
@@ -66,6 +75,7 @@
                         <useIncrementalCompilation>false</useIncrementalCompilation>
                     </configuration>
                 </plugin>
+                <!-- needed by JUnit 5 -->
                 <plugin>
                     <artifactId>maven-surefire-plugin</artifactId>
                     <version>2.22.0</version>
