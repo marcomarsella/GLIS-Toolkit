@@ -1,5 +1,6 @@
 package glis.toolkit;
 
+import org.apache.commons.configuration2.PropertiesConfiguration;
 import org.apache.commons.configuration2.builder.fluent.Configurations;
 import org.json.JSONObject;
 import org.json.XML;
@@ -18,30 +19,30 @@ public class Main {
     public static void main(String[] args) {
         try {
             // read configuration
-            var config = new Configurations().properties(new File(CONFIG_PATH));
-            var url = config.getString("db.url");
-            var username = config.getString("db.username");
-            var password = config.getString("db.password");
-            var sql2o = new Sql2o(url, username, password);
+            PropertiesConfiguration config   = new Configurations().properties(new File(CONFIG_PATH));
+            String                  url      = config.getString("db.url");
+            String                  username = config.getString("db.username");
+            String                  password = config.getString("db.password");
+            Sql2o                   sql2o    = new Sql2o(url, username, password);
 
             // build list of pgrfas to register
-            var pgrfas = select(sql2o, conn ->
+            List<Map<String, Object>> pgrfas = select(sql2o, conn ->
                     conn.createQuery("select * from pgrfas where operation=:operation and processed=:processed")
                             .addParameter("operation", "register")
                             .addParameter("processed", "n"));
 
             // register each pgrfa
-            for (var pgrfa : pgrfas) {
+            for (Map<String, Object> pgrfa : pgrfas) {
 
-                var sampleId = pgrfa.get("sample_id").toString();
+                String sampleId = pgrfa.get("sample_id").toString();
 
                 // get related tables
-                var actors = select(sql2o,      conn -> conn.createQuery("select * from actors      where sample_id=:sample_id").addParameter("sample_id", sampleId));
-                var identifiers = select(sql2o, conn -> conn.createQuery("select * from identifiers where sample_id=:sample_id").addParameter("sample_id", sampleId));
-                var names = select(sql2o,       conn -> conn.createQuery("select * from names       where sample_id=:sample_id").addParameter("sample_id", sampleId));
-                var progdois = select(sql2o,    conn -> conn.createQuery("select * from progdois    where sample_id=:sample_id").addParameter("sample_id", sampleId));
-                var targets = select(sql2o,     conn -> conn.createQuery("select * from targets     where sample_id=:sample_id").addParameter("sample_id", sampleId));
-                var data = new TreeMap<String, Object>();
+                List<Map<String, Object>> actors = select(sql2o,      conn -> conn.createQuery("select * from actors      where sample_id=:sample_id").addParameter("sample_id", sampleId));
+                List<Map<String, Object>> identifiers = select(sql2o, conn -> conn.createQuery("select * from identifiers where sample_id=:sample_id").addParameter("sample_id", sampleId));
+                List<Map<String, Object>> names = select(sql2o,       conn -> conn.createQuery("select * from names       where sample_id=:sample_id").addParameter("sample_id", sampleId));
+                List<Map<String, Object>> progdois = select(sql2o,    conn -> conn.createQuery("select * from progdois    where sample_id=:sample_id").addParameter("sample_id", sampleId));
+                List<Map<String, Object>> targets = select(sql2o,     conn -> conn.createQuery("select * from targets     where sample_id=:sample_id").addParameter("sample_id", sampleId));
+                Map<String, Object> data = new TreeMap<>();
                 data.put("pgrfas", pgrfas);
                 data.put("actors", actors);
                 data.put("identifiers", identifiers);
@@ -56,9 +57,8 @@ public class Main {
                 var xml = xstream.toXML(data);
                 */
 
-                var json = new JSONObject(data);
-                //var json = new Gson().toJsonTree(data);
-                var xml = XML.toString(json, "root");
+                JSONObject json = new JSONObject(data);
+                String     xml = XML.toString(json);
 
                 System.out.println(xml);
             }
