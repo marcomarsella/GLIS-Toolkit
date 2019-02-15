@@ -68,8 +68,8 @@ public class Main {
 			List<Map<String, Object>> identifiers = select(sql2o, conn -> conn.createQuery("select * from identifiers where pgrfa_id=:pgrfa_id").addParameter("pgrfa_id", pgrfaId));
 			List<Map<String, Object>> names = select(sql2o,       conn -> conn.createQuery("select * from names       where pgrfa_id=:pgrfa_id").addParameter("pgrfa_id", pgrfaId));
 			List<Map<String, Object>> progdois = select(sql2o,    conn -> conn.createQuery("select * from progdois    where pgrfa_id=:pgrfa_id").addParameter("pgrfa_id", pgrfaId));
-			//List<Map<String, Object>> targets = select(sql2o,     conn -> conn.createQuery("select * from targets     where pgrfa_id=:pgrfa_id").addParameter("pgrfa_id", pgrfaId));
-			List<Map<String, Object>> targets = select(sql2o,     conn -> conn.createQuery("select t.*, k.* from tkws k, targets t where t.pgrfa_id=:pgrfa_id and t.id=k.target_id").addParameter("pgrfa_id", pgrfaId));
+			List<Map<String, Object>> targets = select(sql2o,     conn -> conn.createQuery("select * from targets     where pgrfa_id=:pgrfa_id").addParameter("pgrfa_id", pgrfaId));
+			List<Map<String, Object>> tkws    = select(sql2o,     conn -> conn.createQuery("select k.* from tkws k, targets t where t.pgrfa_id=:pgrfa_id and t.id=k.target_id").addParameter("pgrfa_id", pgrfaId));
 			Map<String, Object> data = new TreeMap<>();
 			data.put("pgrfas", pgrfas);
 			data.put("actors", actors);
@@ -77,7 +77,7 @@ public class Main {
 			data.put("names", names);
 			data.put("progdois", progdois);
 			data.put("targets", targets);
-			//data.put("tkws", tkws);
+			data.put("tkws", tkws);
 
 			/*
 			XStream xstream = new XStream();
