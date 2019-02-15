@@ -1,0 +1,7 @@
+db.url         = jdbc:mysql://localhost:3306/glistk
+db.username    = glistk
+db.password    = glistk
+db.query_limit = 1
+glis.url       = https://glistest.planttreaty.org/glis/xml/manager
+glis.username  = test
+glis.password  = test
