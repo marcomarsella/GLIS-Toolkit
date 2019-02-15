@@ -91,7 +91,7 @@ public class Main {
 			*/
 
 			JSONObject json = new JSONObject(data);
-			String     xml = XML.toString(json);
+			String     xml = XML.toString(json, "root");
 
 			System.out.println(xml);
 		}

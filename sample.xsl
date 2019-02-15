@@ -23,12 +23,12 @@
 			<date><xsl:value-of select="date"/></date>
 			<method><xsl:value-of select="method"/></method>
 			<genus><xsl:value-of select="genus"/></genus>
-			<biostatus><xsl:value-of select="biostatus"/></biostatus>
+			<biostatus><xsl:value-of select="bio_status"/></biostatus>
 			<species><xsl:value-of select="species"/></species>
-			<spauth><xsl:value-of select="spauth"/></spauth>
+			<spauth><xsl:value-of select="sp_auth"/></spauth>
 			<subtaxa><xsl:value-of select="subtaxa"/></subtaxa>
-			<stauth><xsl:value-of select="stauth"/></stauth>
-			<mlsstatus><xsl:value-of select="mlsstatus"/></mlsstatus>
+			<stauth><xsl:value-of select="st_auth"/></stauth>
+			<mlsstatus><xsl:value-of select="mls_status"/></mlsstatus>
 			<historical><xsl:value-of select="historical"/></historical>
 			<cropnames>
 				<xsl:for-each select="/root/names[name_type = 'cn']">
