@@ -40,8 +40,8 @@ public class Main {
 			System.out.println("GLIS password:     [" + glisPassword + "]");
 			
 			// Register first then update
-			process(sql2o, "register", qlimit);
-			process(sql2o, "update",   qlimit);
+			process(sql2o, "register", qlimit, glisUsername, glisPassword);
+			process(sql2o, "update",   qlimit, glisUsername, glisPassword);
 			
         } catch (Exception e) {
             e.printStackTrace();
@@ -49,7 +49,7 @@ public class Main {
     }
     
     
-	private static void process(Sql2o sql2o, String operation, Integer qlimit) {
+	private static void process(Sql2o sql2o, String operation, Integer qlimit, String glisUsername, String glisPassword) {
 
 		// build list of pgrfas to process according to operation
 		List<Map<String, Object>> pgrfas = select(sql2o, conn ->
@@ -71,6 +71,10 @@ public class Main {
 			List<Map<String, Object>> targets = select(sql2o,     conn -> conn.createQuery("select * from targets     where pgrfa_id=:pgrfa_id").addParameter("pgrfa_id", pgrfaId));
 			List<Map<String, Object>> tkws    = select(sql2o,     conn -> conn.createQuery("select k.* from tkws k, targets t where t.pgrfa_id=:pgrfa_id and t.id=k.target_id").addParameter("pgrfa_id", pgrfaId));
 			Map<String, Object> data = new TreeMap<>();
+			Map<String, String> confMap = new HashMap<String, String> ();
+			confMap.put("glis_username",glisUsername);
+			confMap.put("glis_password",glisPassword);
+			data.put("conf", confMap);
 			data.put("pgrfas", pgrfas);
 			data.put("actors", actors);
 			data.put("identifiers", identifiers);
