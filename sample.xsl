@@ -8,7 +8,7 @@
 	</xsl:template>
 
 	<xsl:template match="pgrfas">
-		<register username="toolkit" password="Passw0rd">
+		<register username="{/root/conf/glis_username}" password="{/root/conf/glis_password}">
 			<location>
 				<wiews><xsl:value-of select="hold_wiews"/></wiews>
 				<pid><xsl:value-of select="hold_pid"/></pid>
