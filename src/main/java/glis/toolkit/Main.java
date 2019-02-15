@@ -31,12 +31,13 @@ public class Main {
 
 			//Print configuration
 			System.out.println("Configuration");
-			System.out.println("Database URL:      " + url);
-			System.out.println("Database username: " + username);
-			System.out.println("Query limit:       " + qlimit);
-			System.out.println("GLIS URL:          " + glisUrl);
-			System.out.println("GLIS username:     " + glisUsername);
-			System.out.println("GLIS password:     " + glisPassword);
+			System.out.println("Database URL:      [" + url + "]");
+			System.out.println("Database username: [" + username + "]");
+			System.out.println("Database password: [" + password + "]");
+			System.out.println("Query limit:       [" + qlimit + "]");
+			System.out.println("GLIS URL:          [" + glisUrl + "]");
+			System.out.println("GLIS username:     [" + glisUsername + "]");
+			System.out.println("GLIS password:     [" + glisPassword + "]");
 			
 			// Register first then update
 			process(sql2o, "register", qlimit);
