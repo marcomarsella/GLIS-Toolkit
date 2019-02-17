@@ -89,23 +89,27 @@ public class Main {
 
 		// process each pgrfa
 		Integer count = 0;
+        Map<String, Object> conf = new HashMap<> ();
+		conf.put("glis_username",glisUsername);
+		conf.put("glis_password",glisPassword);
+
 		for (String id: ids) {
+			Map<String, Object> pgrfa = select(sql2o, conn -> conn.createQuery("select * from pgrfas      where id=:id").addParameter("id", id)).get(0);
 
-			Map<String, Object> conf = new HashMap<> ();
-			conf.put("glis_username",glisUsername);
-			conf.put("glis_password",glisPassword);
-
-			Document doc     = buildDocument(id, conf);
+			String wiews     = pgrfa.get("hold_wiews").toString();
+			String pid       = pgrfa.get("hold_pid").toString();
+			Document doc     = buildDocument(id, pgrfa, conf);
 			Document message = transformDocument(doc);
-			message = pruneDocument(message);
+			message          = pruneDocument(message);
 
 			FluentXml.serialize(message).to(System.out);
+			System.out.println("WIEWS: " + wiews);
+			System.out.println("PID  : " + pid);
 		}
 	}
 
-	private static Document buildDocument(String id, Map<String, Object> conf) throws ParserConfigurationException {
+	private static Document buildDocument(String id, Map<String, Object> pgrfa, Map<String, Object> conf) throws ParserConfigurationException {
 		// get related tables
-		List<Map<String, Object>> pgrfa       = select(sql2o, conn -> conn.createQuery("select * from pgrfas      where id=:id").addParameter("id", id));
 		List<Map<String, Object>> actors      = select(sql2o, conn -> conn.createQuery("select * from actors      where pgrfa_id=:pgrfa_id").addParameter("pgrfa_id", id));
 		List<Map<String, Object>> identifiers = select(sql2o, conn -> conn.createQuery("select * from identifiers where pgrfa_id=:pgrfa_id").addParameter("pgrfa_id", id));
 		List<Map<String, Object>> names       = select(sql2o, conn -> conn.createQuery("select * from names       where pgrfa_id=:pgrfa_id").addParameter("pgrfa_id", id));
@@ -114,14 +118,14 @@ public class Main {
 		List<Map<String, Object>> tkws        = select(sql2o, conn -> conn.createQuery("select k.* from tkws k, targets t where t.pgrfa_id=:pgrfa_id and t.id=k.target_id").addParameter("pgrfa_id", id));
 
 		XMLBuilder builder = XMLBuilder.create("root");
-		addMap(builder.element("conf"), conf);
-		addList(builder, "pgrfa",      pgrfa);
-		addList(builder, "actor",      actors);
-		addList(builder, "identifier", identifiers);
-		addList(builder, "name",       names);
-		addList(builder, "progdoi",    progdois);
-		addList(builder, "target",     targets);
-		addList(builder, "tkw",       tkws);
+		addMap(builder.element("conf"),  conf);
+		addMap(builder.element("pgrfa"), pgrfa);
+		addList(builder, "actor",        actors);
+		addList(builder, "identifier",   identifiers);
+		addList(builder, "name",         names);
+		addList(builder, "progdoi",      progdois);
+		addList(builder, "target",       targets);
+		addList(builder, "tkw",          tkws);
 		return builder.getDocument();
 	}
 
