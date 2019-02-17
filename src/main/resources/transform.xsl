@@ -2,11 +2,12 @@
 <xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
 
 	<xsl:output method="xml" indent="yes"/>
+	<xsl:strip-space elements="*"/>
 
 	<xsl:template match="/root">
 		<xsl:apply-templates select="pgrfa"/>
 	</xsl:template>
-
+	
 	<xsl:template match="pgrfa">
 		<register username="{/root/conf/glis_username}" password="{/root/conf/glis_password}">
 			<location>

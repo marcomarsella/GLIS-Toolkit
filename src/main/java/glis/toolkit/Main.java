@@ -97,6 +97,7 @@ public class Main {
 
 			Document doc     = buildDocument(id, conf);
 			Document message = transformDocument(doc);
+			message = pruneDocument(message);
 
 			FluentXml.serialize(message).to(System.out);
 		}
@@ -128,6 +129,13 @@ public class Main {
 		Document requestXslt = FluentXml.parse(Main.class.getClassLoader().getResourceAsStream("transform.xsl")).document();
 		return FluentXml.transform(doc)
 				.withStylesheet(requestXslt)
+				.toDocument();
+	}
+
+	private static Document pruneDocument(Document doc) {
+		Document pruneXslt = FluentXml.parse(Main.class.getClassLoader().getResourceAsStream("prune.xsl")).document();
+		return FluentXml.transform(doc)
+				.withStylesheet(pruneXslt)
 				.toDocument();
 	}
 
