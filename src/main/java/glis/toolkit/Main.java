@@ -71,7 +71,7 @@ public class Main {
 			conf.put("glis_password",glisPassword);
 
 			Document doc     = buildDocument(sql2o, id, conf);
-			Document message = transformDocument(doc, operation);
+			Document message = transformDocument(doc);
 
 			FluentXml.serialize(message).to(System.out);
 		}
@@ -99,9 +99,8 @@ public class Main {
 		return builder.getDocument();
 	}
 
-	private static Document transformDocument(Document doc, String operation) {
-    	String filename = operation + ".xsl";
-		Document requestXslt = FluentXml.parse(Main.class.getClassLoader().getResourceAsStream(filename)).document();
+	private static Document transformDocument(Document doc) {
+		Document requestXslt = FluentXml.parse(Main.class.getClassLoader().getResourceAsStream("transform.xsl")).document();
 		return FluentXml.transform(doc)
 				.withStylesheet(requestXslt)
 				.toDocument();
