@@ -1,108 +1,126 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
 
-  <xsl:template match="/">
-    <register username="[username]" password="[password]">
+	<xsl:output method="xml" indent="yes"/>
 
-      <xsl:variable name="provider" select="/root/actor[role='pr']"/>
-      <xsl:copy-of select="$provider"/>
+	<xsl:template match="/root">
+		<xsl:apply-templates select="pgrfa"/>
+	</xsl:template>
 
-      <location>
-        <wiews>[lwiews]</wiews>
-        <pid>[lpid]</pid>
-        <name>[lname]</name>
-        <address>[laddress]</address>
-        <country>[lcountry]</country>
-      </location>
+	<xsl:template match="pgrfa">
+		<register username="{/root/conf/glis_username}" password="{/root/conf/glis_password}">
+			<location>
+				<wiews><xsl:value-of select="hold_wiews"/></wiews>
+				<pid><xsl:value-of select="hold_pid"/></pid>
+				<name><xsl:value-of select="hold_name"/></name>
+				<address><xsl:value-of select="hold_address"/></address>
+				<country><xsl:value-of select="hold_country"/></country>
+			</location>
+			<xsl:if test="operation = 'update'">
+				<sampledoi><xsl:value-of select="sample_doi"/></sampledoi>
+			</xsl:if>
+			<sampleid><xsl:value-of select="sample_id"/></sampleid>
+			<date><xsl:value-of select="date"/></date>
+			<method><xsl:value-of select="method"/></method>
+			<genus><xsl:value-of select="genus"/></genus>
+			<biostatus><xsl:value-of select="bio_status"/></biostatus>
+			<species><xsl:value-of select="species"/></species>
+			<spauth><xsl:value-of select="sp_auth"/></spauth>
+			<subtaxa><xsl:value-of select="subtaxa"/></subtaxa>
+			<stauth><xsl:value-of select="st_auth"/></stauth>
+			<mlsstatus><xsl:value-of select="mls_status"/></mlsstatus>
+			<historical><xsl:value-of select="historical"/></historical>
+			<cropnames>
+				<xsl:for-each select="/root/name[name_type = 'cn']">
+					<name><xsl:value-of select="name"/></name>
+				</xsl:for-each>
+			</cropnames>
+			<names>
+				<xsl:for-each select="/root/name[name_type = 'on']">
+					<name><xsl:value-of select="name"/></name>
+				</xsl:for-each>
+		   </names>
+		   <targets>
+				<xsl:for-each select="/root/target">
+					<target>
+						<value><xsl:value-of select="value"/></value>
+						<xsl:variable name="tid" select="id"/>
+						<kws>
+							<xsl:for-each select="/root/tkw[target_id = $tid]">
+								<kw><xsl:value-of select="value"/></kw>
+							</xsl:for-each>
+						</kws>
+					</target>
+				</xsl:for-each>
+			</targets>
+			<progdoi>
+				<xsl:for-each select="/root/progdoi">
+				   <doi><xsl:value-of select="doi"/></doi>
+				</xsl:for-each>
+			</progdoi>
+			<ids>
+				<xsl:for-each select="/root/identifier">
+					<id type="{type}"><xsl:value-of select="value"/></id>
+				</xsl:for-each>
+			</ids>
 
-      <sampledoi>[sampledoi]</sampledoi>
-      <sampleid>[sampleid]</sampleid>
-      <date>[date]</date>
-      <method>[method]</method>
-      <genus>[genus]</genus>
-      <cropnames>
-        <name>[cropname]</name>
-      </cropnames>
+			<xsl:if test="/root/actor[role = 'pr']">
+				<acquisition>
+					<provider>
+						<wiews><xsl:value-of select="wiews"/></wiews>
+						<pid><xsl:value-of select="pid"/></pid>
+						<name><xsl:value-of select="name"/></name>
+						<address><xsl:value-of select="address"/></address>
+						<country><xsl:value-of select="country"/></country>
+					</provider>
+					<sampleid><xsl:value-of select="prov_sid"/></sampleid>
+					<provenance><xsl:value-of select="provenance"/></provenance>
+				</acquisition>
+			</xsl:if>
 
-      <targets>
-         <target>
-           <value>[tvalue]</value>
-           <kws>
-             <kw>[tkw]</kw>
-           </kws>
-         </target>
-      </targets>
+			<collection>
+				<xsl:if test="/root/actor[role = 'co']">
+					<collectors>
+						<xsl:for-each select="/actors[role = 'co']">
+							<collector>
+								<wiews><xsl:value-of select="wiews"/></wiews>
+								<pid><xsl:value-of select="pid"/></pid>
+								<name><xsl:value-of select="name"/></name>
+								<address><xsl:value-of select="address"/></address>
+								<country><xsl:value-of select="country"/></country>
+							</collector>
+						 </xsl:for-each>
+					</collectors>
+				</xsl:if>
+				<sampleid><xsl:value-of select="coll_sid"/></sampleid>
+				<missid><xsl:value-of select="coll_miss_id"/></missid>
+				<site><xsl:value-of select="coll_site"/></site>
+				<lat><xsl:value-of select="coll_lat"/></lat>
+				<lon><xsl:value-of select="coll_lon"/></lon>
+				<uncert><xsl:value-of select="coll_uncert"/></uncert>
+				<datum><xsl:value-of select="coll_datum"/></datum>
+				<georef><xsl:value-of select="coll_georef"/></georef>
+				<elevation><xsl:value-of select="coll_elevation"/></elevation>
+				<date><xsl:value-of select="coll_date"/></date>
+				<source><xsl:value-of select="coll_source"/></source>
+			</collection>
 
-      <progdoi>
-        <doi>[progdoi]</doi>
-      </progdoi>
-
-      <biostatus>[biostatus]</biostatus>
-      <species>[species]</species>
-      <spauth>[spauth]</spauth>
-      <subtaxa>[subtaxa]</subtaxa>
-      <stauth>[stauth]</stauth>
-
-      <names>
-        <name>[nvalue]</name>
-      </names>
-
-      <ids>
-        <id type="[itype]">[ivalue]</id>
-      </ids>
-
-      <mlsstatus>[mlsstatus]</mlsstatus>
-      <historical>[hist]</historical>
-
-      <acquisition>
-        <provider>
-          <wiews>[pwiews]</wiews>
-          <pid>[ppid]</pid>
-          <name>[pname]</name>
-          <address>[paddress]</address>
-          <country>[pcountry]</country>
-        </provider>
-        <sampleid>[psampleid]</sampleid>
-        <provenance>[provenance]</provenance>
-      </acquisition>
-
-      <collection>
-        <collectors>
-          <collector>
-            <wiews>[cwiews]</wiews>
-            <pid>[cpid]</pid>
-            <name>[cname]</name>
-            <address>[caddress]</address>
-            <country>[ccountry]</country>
-          </collector>
-        </collectors>
-        <sampleid>[csampleid]</sampleid>
-        <missid>[missid]</missid>
-        <site>[site]</site>
-        <lat>[clat]</lat>
-        <lon>[clon]</lon>
-        <uncert>[uncert]</uncert>
-        <datum>[datum]</datum>
-        <georef>[georef]</georef>
-        <elevation>[elevation]</elevation>
-        <date>[cdate]</date>
-        <source>[source]</source>
-      </collection>
-
-      <breeding>
-        <breeders>
-          <breeder>
-            <wiews>[wiews]</wiews>
-            <pid>[pid]</pid>
-            <name>[name]</name>
-            <address>[address]</address>
-            <country>[country]</country>
-          </breeder>
-        </breeders>
-        <ancestry>[ancestry]</ancestry>
-      </breeding>
-
-    </register>
-  </xsl:template>
-
+			<breeding>
+				<xsl:if test="/root/actor[role = 'br']">
+					<breeders>
+						<xsl:for-each select="/actors[role = 'co']">
+							<breeder>
+								<wiews><xsl:value-of select="wiews"/></wiews>
+								<pid><xsl:value-of select="pid"/></pid>
+								<name><xsl:value-of select="name"/></name>
+								<address><xsl:value-of select="address"/></address>
+								<country><xsl:value-of select="country"/></country>
+							</breeder>
+						</xsl:for-each>
+					</breeders>
+				</xsl:if>
+				<ancestry><xsl:value-of select="ancestry"/></ancestry>
+			</breeding>
+		</register>
+	</xsl:template>
 </xsl:stylesheet>
