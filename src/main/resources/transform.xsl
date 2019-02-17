@@ -9,7 +9,13 @@
 	</xsl:template>
 	
 	<xsl:template match="pgrfa">
-		<register username="{/root/conf/glis_username}" password="{/root/conf/glis_password}">
+		<xsl:element name="{operation}">
+			<xsl:attribute name="username">
+				<xsl:value-of select="/root/conf/glis_username"/>
+			</xsl:attribute>
+			<xsl:attribute name="password">
+				<xsl:value-of select="/root/conf/glis_password"/>
+			</xsl:attribute>
 			<location>
 				<wiews><xsl:value-of select="hold_wiews"/></wiews>
 				<pid><xsl:value-of select="hold_pid"/></pid>
@@ -122,6 +128,6 @@
 				</xsl:if>
 				<ancestry><xsl:value-of select="ancestry"/></ancestry>
 			</breeding>
-		</register>
+		</xsl:element>
 	</xsl:template>
 </xsl:stylesheet>
