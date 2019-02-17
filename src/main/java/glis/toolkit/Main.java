@@ -1,9 +1,12 @@
 package glis.toolkit;
 
-import com.github.fluentxml4j.FluentXml;
-import com.jamesmurty.utils.XMLBuilder;
+import com.mashape.unirest.http.HttpResponse;
+import com.mashape.unirest.http.Unirest;
 import org.apache.commons.configuration2.PropertiesConfiguration;
 import org.apache.commons.configuration2.builder.fluent.Configurations;
+import org.apache.http.HttpException;
+import org.apache.http.HttpStatus;
+import org.joox.Match;
 import org.sql2o.Connection;
 import org.sql2o.Query;
 import org.sql2o.Sql2o;
@@ -16,32 +19,32 @@ import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static org.joox.JOOX.$;
+
 public class Main {
 
     public static final String CONFIG_PATH = "config.txt";
-    public static String timeStamp = new SimpleDateFormat("yyyyMMdd-HHmmss").format(new Date());
-	public static Writer fDOI         = null;
-	public static String glisUrl      = null;
-	public static String glisUsername = null;
-	public static String glisPassword = null;
-	public static Integer qlimit      = 0;
-	public static Sql2o sql2o = null;
+    public static final String TIMESTAMP   = new SimpleDateFormat("yyyyMMdd-HHmmss").format(new Date());
+
+	public static String  glisUrl;
+	public static String  glisUsername;
+	public static String  glisPassword;
+	public static Integer qlimit;
+	public static Sql2o   sql2o;
 
     public static void main(String[] args) {
         
-        File fLock = null;
+		File fLock = new File("lock.lck");
+		try (Writer fDOI = new FileWriter(TIMESTAMP + "_" + "DOI.txt")) {
 
-		try {
-  			fDOI = new FileWriter(timeStamp + "_" + "DOI.txt");       
-        	//File-based locking mechanism to ensure that only one instance is running at any given time
-        	fLock = new File("lock.lck");
-			if(!fLock.exists()){
+        	// file-based locking mechanism to ensure that only one instance is running at any given time
+			if (!fLock.exists()) {
   				fLock.createNewFile();
-			} else {
+			}
+			else {
 				System.out.println("Lock file 'lock.lck' exists. Either another instance of the Toolkit is running or it has terminated in an error. Please make sure no other instance of the Toolkit is running, or fix the error, before removing the lock file and trying again");
 				System.exit(1);
 			}
-
             // read configuration
             PropertiesConfiguration config   = new Configurations().properties(new File(CONFIG_PATH));
             String                  url      = config.getString("db.url");
@@ -67,15 +70,17 @@ public class Main {
 			// Register first then update
 			process("register");
 			process("update");
-
-			fDOI.close();			// Close DOI file
-			fLock.delete();			// Remove lock file
-        } catch (Exception e) {
+		}
+		catch (Exception e) {
             e.printStackTrace();
+		}
+		finally {
+			// remove lock file
+			fLock.delete();
 		}
     }
 
-	private static void process(String operation) throws ParserConfigurationException {
+	private static void process(String operation) throws Exception {
 
 		// build list of pgrfa ids to register
 		List<String> ids = select(sql2o, conn ->
@@ -94,21 +99,40 @@ public class Main {
 		conf.put("glis_password",glisPassword);
 
 		for (String id: ids) {
-			Map<String, Object> pgrfa = select(sql2o, conn -> conn.createQuery("select * from pgrfas      where id=:id").addParameter("id", id)).get(0);
+			Map<String, Object> pgrfa = select(sql2o, conn -> conn.createQuery("select * from pgrfas where id=:id").addParameter("id", id)).get(0);
 
-			String wiews     = pgrfa.get("hold_wiews").toString();
-			String pid       = pgrfa.get("hold_pid").toString();
-			Document doc     = buildDocument(id, pgrfa, conf);
-			Document message = transformDocument(doc);
-			message          = pruneDocument(message);
+			String   wiews      = pgrfa.get("hold_wiews").toString();
+			String   pid        = pgrfa.get("hold_pid").toString();
+			Document doc        = buildDocument(id, pgrfa, conf);
 
-			FluentXml.serialize(message).to(System.out);
-			System.out.println("WIEWS: " + wiews);
-			System.out.println("PID  : " + pid);
+			Document request    = transform(doc,     "transform.xsl");
+			request             = transform(request, "prune.xsl");
+			String   xmlRequest = $(request).toString();
+
+			HttpResponse<String> httpResponse = Unirest.post(glisUrl)
+					.header("accept", "application/xml")
+					.body(xmlRequest)
+					.asString();
+			String   xmlResponse = httpResponse.getBody();
+			Document response = $(xmlResponse).document();
+			if (httpResponse.getStatus() == HttpStatus.SC_OK) {
+
+				// do something...
+			}
+			else {
+				String sampleId = $(response).child("sampleid").text();
+				String genus    = $(response).child("genus").text();
+				String error    = $(response).child("error").text();
+
+				System.err.println(sampleId + " - " + genus + " - " + error);
+
+				throw new HttpException(httpResponse.getStatus() + " " + httpResponse.getStatusText());
+			}
 		}
 	}
 
 	private static Document buildDocument(String id, Map<String, Object> pgrfa, Map<String, Object> conf) throws ParserConfigurationException {
+
 		// get related tables
 		List<Map<String, Object>> actors      = select(sql2o, conn -> conn.createQuery("select * from actors      where pgrfa_id=:pgrfa_id").addParameter("pgrfa_id", id));
 		List<Map<String, Object>> identifiers = select(sql2o, conn -> conn.createQuery("select * from identifiers where pgrfa_id=:pgrfa_id").addParameter("pgrfa_id", id));
@@ -117,30 +141,22 @@ public class Main {
 		List<Map<String, Object>> targets     = select(sql2o, conn -> conn.createQuery("select * from targets     where pgrfa_id=:pgrfa_id").addParameter("pgrfa_id", id));
 		List<Map<String, Object>> tkws        = select(sql2o, conn -> conn.createQuery("select k.* from tkws k, targets t where t.pgrfa_id=:pgrfa_id and t.id=k.target_id").addParameter("pgrfa_id", id));
 
-		XMLBuilder builder = XMLBuilder.create("root");
-		addMap(builder.element("conf"),  conf);
-		addMap(builder.element("pgrfa"), pgrfa);
-		addList(builder, "actor",        actors);
-		addList(builder, "identifier",   identifiers);
-		addList(builder, "name",         names);
-		addList(builder, "progdoi",      progdois);
-		addList(builder, "target",       targets);
-		addList(builder, "tkw",          tkws);
-		return builder.getDocument();
+		return $("root",
+				 addMap($("conf"),        conf),
+				 addMap($("pgrfa"),       pgrfa),
+				 addList($("actor"),      actors),
+				 addList($("identifier"), identifiers),
+				 addList($("name"),       names),
+				 addList($("progdoi"),    progdois),
+				 addList($("target"),     targets),
+				 addList($("tkw"),        tkws)
+		).document();
 	}
 
-	private static Document transformDocument(Document doc) {
-		Document requestXslt = FluentXml.parse(Main.class.getClassLoader().getResourceAsStream("transform.xsl")).document();
-		return FluentXml.transform(doc)
-				.withStylesheet(requestXslt)
-				.toDocument();
-	}
-
-	private static Document pruneDocument(Document doc) {
-		Document pruneXslt = FluentXml.parse(Main.class.getClassLoader().getResourceAsStream("prune.xsl")).document();
-		return FluentXml.transform(doc)
-				.withStylesheet(pruneXslt)
-				.toDocument();
+	private static Document transform(Document doc, String xslPath) {
+		return $(doc)
+				.transform(Main.class.getClassLoader().getResourceAsStream(xslPath))
+				.document();
 	}
 
     // more readable than sql2o.withConnection...
@@ -150,13 +166,15 @@ public class Main {
         }
     }
 
-	private static void addList(XMLBuilder builder, String name, List<Map<String, Object>> list) {
-		list.forEach(map -> addMap(builder.element(name), map));
+	private static Match addList(Match m, List<Map<String, Object>> list) {
+		list.forEach(map -> addMap(m, map));
+		return m;
 	}
 
-	private static void addMap(XMLBuilder builder, Map<String, Object> map) {
+	private static Match addMap(Match m, Map<String, Object> map) {
 		map.entrySet().stream()
 				.filter(entry -> entry.getValue() != null)
-				.forEach(entry -> builder.element(entry.getKey()).text(entry.getValue().toString()));
+				.forEach(entry -> m.append($(entry.getKey()).text(entry.getValue().toString())));
+		return m;
 	}
 }
