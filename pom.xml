@@ -2,107 +2,118 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-    <modelVersion>4.0.0</modelVersion>
+  <modelVersion>4.0.0</modelVersion>
 
-    <groupId>glis</groupId>
-    <artifactId>toolkit</artifactId>
-    <version>1.0-SNAPSHOT</version>
+  <groupId>glis</groupId>
+  <artifactId>toolkit</artifactId>
+  <version>1.0-SNAPSHOT</version>
 
-    <properties>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <java.version>8</java.version>
-        <junit.jupiter.version>5.3.2</junit.jupiter.version>
-    </properties>
+  <properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <java.version>8</java.version>
+    <junit.jupiter.version>5.3.2</junit.jupiter.version>
+  </properties>
 
-    <dependencies>
-        <!-- database micro-orm and jdbc drivers -->
-        <dependency>
-            <groupId>org.sql2o</groupId>
-            <artifactId>sql2o</artifactId>
-            <version>1.6.0</version>
-        </dependency>
-        <dependency>
-            <groupId>mysql</groupId>
-            <artifactId>mysql-connector-java</artifactId>
-            <version>8.0.15</version>
-        </dependency>
-        <!-- xml/json processing -->
-        <dependency>
-            <groupId>org.json</groupId>
-            <artifactId>json</artifactId>
-            <version>20180813</version>
-        </dependency>
-        <!-- apache commons utilities -->
-        <dependency>
-            <groupId>commons-io</groupId>
-            <artifactId>commons-io</artifactId>
-            <version>2.6</version>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.commons</groupId>
-            <artifactId>commons-configuration2</artifactId>
-            <version>2.4</version>
-        </dependency>
-        <dependency>
-            <groupId>commons-beanutils</groupId>
-            <artifactId>commons-beanutils</artifactId>
-            <version>1.9.3</version>
-        </dependency>
-        <!-- unit tests with JUnit 5 -->
-        <dependency>
-            <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter-api</artifactId>
-            <version>${junit.jupiter.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter-engine</artifactId>
-            <version>${junit.jupiter.version}</version>
-            <scope>test</scope>
-        </dependency>
-    </dependencies>
+  <dependencies>
+    <!-- database micro-orm and jdbc drivers -->
+    <dependency>
+      <groupId>org.sql2o</groupId>
+      <artifactId>sql2o</artifactId>
+      <version>1.6.0</version>
+    </dependency>
+    <dependency>
+      <groupId>mysql</groupId>
+      <artifactId>mysql-connector-java</artifactId>
+      <version>8.0.15</version>
+    </dependency>
+    <!-- xml processing -->
+    <!--
+    <dependency>
+      <groupId>org.json</groupId>
+      <artifactId>json</artifactId>
+      <version>20180813</version>
+    </dependency>
+    -->
+    <dependency>
+      <groupId>com.jamesmurty.utils</groupId>
+      <artifactId>java-xmlbuilder</artifactId>
+      <version>1.2</version>
+    </dependency>
+    <dependency>
+      <groupId>com.github.fluentxml4j</groupId>
+      <artifactId>fluentxml4j-core</artifactId>
+      <version>2.2.1</version>
+    </dependency>    <!-- apache commons utilities -->
+    <dependency>
+      <groupId>commons-io</groupId>
+      <artifactId>commons-io</artifactId>
+      <version>2.6</version>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-configuration2</artifactId>
+      <version>2.4</version>
+    </dependency>
+    <dependency>
+      <groupId>commons-beanutils</groupId>
+      <artifactId>commons-beanutils</artifactId>
+      <version>1.9.3</version>
+    </dependency>
+    <!-- unit tests with JUnit 5 -->
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-api</artifactId>
+      <version>${junit.jupiter.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-engine</artifactId>
+      <version>${junit.jupiter.version}</version>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
 
-    <build>
-        <pluginManagement>
-            <plugins>
-                <!-- to specify java version -->
-                <plugin>
-                    <artifactId>maven-compiler-plugin</artifactId>
-                    <configuration>
-                        <source>${java.version}</source>
-                        <target>${java.version}</target>
-                        <useIncrementalCompilation>false</useIncrementalCompilation>
-                    </configuration>
-                </plugin>
-                <!-- needed by JUnit 5 -->
-                <plugin>
-                    <artifactId>maven-surefire-plugin</artifactId>
-                    <version>2.22.0</version>
-                </plugin>
-			    <!-- Build an executable JAR -->
-				<plugin>
-				    <artifactId>maven-jar-plugin</artifactId>
-					<configuration>
-					    <archive>
-						    <manifest>
-							  <addClasspath>true</addClasspath>
-							  <classpathPrefix>lib/</classpathPrefix>
-							  <mainClass>glis.toolkit.Main</mainClass>
-						    </manifest>
-						  </archive>
-					</configuration>
-				</plugin>
-		        <plugin>
-            		<groupId>org.codehaus.mojo</groupId>
-            		<artifactId>exec-maven-plugin</artifactId>
-            		<version>1.2.1</version>
-            		<configuration>
-                		<mainClass>glis.toolkit.Main</mainClass>
-            		</configuration>
-        		</plugin>
-            </plugins>
-        </pluginManagement>
-    </build>
+  <build>
+    <pluginManagement>
+      <plugins>
+        <!-- to specify java version -->
+        <plugin>
+          <artifactId>maven-compiler-plugin</artifactId>
+          <configuration>
+            <source>${java.version}</source>
+            <target>${java.version}</target>
+            <useIncrementalCompilation>false</useIncrementalCompilation>
+          </configuration>
+        </plugin>
+        <!-- needed by JUnit 5 -->
+        <plugin>
+          <artifactId>maven-surefire-plugin</artifactId>
+          <version>2.22.0</version>
+        </plugin>
+        <!-- Build an executable JAR -->
+        <plugin>
+          <artifactId>maven-jar-plugin</artifactId>
+          <configuration>
+            <archive>
+              <manifest>
+                <addClasspath>true</addClasspath>
+                <classpathPrefix>lib/</classpathPrefix>
+                <mainClass>glis.toolkit.Main</mainClass>
+              </manifest>
+            </archive>
+          </configuration>
+        </plugin>
+        <plugin>
+          <groupId>org.codehaus.mojo</groupId>
+          <artifactId>exec-maven-plugin</artifactId>
+          <version>1.2.1</version>
+          <configuration>
+            <mainClass>glis.toolkit.Main</mainClass>
+          </configuration>
+        </plugin>
+      </plugins>
+    </pluginManagement>
+  </build>
 
 </project>
