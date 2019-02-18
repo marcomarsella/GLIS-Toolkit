@@ -4,6 +4,7 @@ import com.mashape.unirest.http.HttpResponse;
 import com.mashape.unirest.http.Unirest;
 import org.apache.commons.configuration2.PropertiesConfiguration;
 import org.apache.commons.configuration2.builder.fluent.Configurations;
+import org.apache.http.HttpException;
 import org.apache.http.HttpStatus;
 import org.joox.Match;
 import org.sql2o.Connection;
@@ -109,36 +110,43 @@ public class Main {
 			request             = transform(request, "prune.xsl");
 			String   xmlRequest = $(request).toString();
 
-			HttpResponse<String> httpResponse = Unirest.post(glisUrl)
-					.header("accept", "application/xml")
-					.body(xmlRequest)
-					.asString();
-			String   xmlResponse = httpResponse.getBody();
-			Document response = $(xmlResponse).document();
+			try {
+				HttpResponse<String> httpResponse = Unirest.post(glisUrl)
+						.header("accept", "application/xml")
+						.body(xmlRequest)
+						.asString();
+				String   xmlResponse = httpResponse.getBody();
+				Document response = $(xmlResponse).document();
 
-			//Extract relevant information, if available
-			String doi      = $(response).child("doi").text();
-			String sampleId = $(response).child("sampleid").text();
-			String genus    = $(response).child("genus").text();
-			String error    = $(response).child("error").text();
+				//Extract relevant information, if available
+				String doi      = $(response).child("doi").text();
+				String sampleId = $(response).child("sampleid").text();
+				String genus    = $(response).child("genus").text();
+				String error    = $(response).child("error").text();
 
-			//System.out.println(genus + "\t" + sampleId + "\t" + doi + "\t" + error);
+				//System.out.println(genus + "\t" + sampleId + "\t" + doi + "\t" + error);
 
-			String result   = ((error != null) && (!error.isEmpty())) ? "KO" : "OK";
+				String result   = ((error != null) && (!error.isEmpty())) ? "KO" : "OK";
 
-			if (httpResponse.getStatus() == HttpStatus.SC_INTERNAL_SERVER_ERROR) {
-				System.err.println(sampleId + " - " + genus + " - " + error);
+				if (httpResponse.getStatus() == HttpStatus.SC_INTERNAL_SERVER_ERROR) {
+					System.err.println(sampleId + " - " + genus + " - " + error);
+					Unirest.shutdown();System.exit(1);
+				}
+				if (Objects.equals(result,"OK")) {
+					fDOI.write(wiews + "\t" + pid + "\t" + genus + "\t" + sampleId + "\t" + doi + "\n");
+				}
+				// Write result to DB
+				insertResult(operation, result, doi, sampleId, genus, error);
+				markAsProcessed(id);
+				count++;
+				System.out.println("Processed sample [" + count.toString() + "][" + sampleId + "]: " + result);
+			} catch (com.mashape.unirest.http.exceptions.UnirestException e) {
+				System.err.println("Exception: " + e.getMessage());
+				Unirest.shutdown();
 				System.exit(1);
 			}
-			if (Objects.equals(result,"OK")) {
-				fDOI.write(wiews + "\t" + pid + "\t" + genus + "\t" + sampleId + "\t" + doi + "\n");
-			}
-			// Write result to DB
-			insertResult(operation, result, doi, sampleId, genus, error);
-			markAsProcessed(id);
-			count++;
-			System.out.println("Processed sample [" + count.toString() + "][" + sampleId + "]: " + result);
 		}
+		Unirest.shutdown();
 	}
 
 	private static Document buildDocument(String id, Map<String, Object> pgrfa, Map<String, Object> conf) throws ParserConfigurationException {
