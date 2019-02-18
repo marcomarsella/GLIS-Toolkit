@@ -172,7 +172,7 @@ public class Main {
 		final String query = "update pgrfas set processed = 'y' where id=:id";
 		try (Connection conn = sql2o.open()) {
 			conn.createQuery(query)
-					.addParameter("id", Integer.getInteger(id))
+					.addParameter("id", Integer.parseInt(id))
 					.executeUpdate();
 		}
 	}
