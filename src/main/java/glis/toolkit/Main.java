@@ -97,6 +97,7 @@ public class Main {
 		conf.put("glis_username",glisUsername);
 		conf.put("glis_password",glisPassword);
 
+		Integer count = 0;
 		for (String id: ids) {
 			Map<String, Object> pgrfa = select(conn -> conn.createQuery("select * from pgrfas where id=:id").addParameter("id", id)).get(0);
 
@@ -135,7 +136,8 @@ public class Main {
 			// Write result to DB
 			insertResult(operation, result, doi, sampleId, genus, error);
 			markAsProcessed(id);
-			System.out.println("Processed sample [" + sampleId + "]: " + result);
+			count++;
+			System.out.println("Processed sample [" + count.toString() + "][" + sampleId + "]: " + result);
 		}
 	}
 
