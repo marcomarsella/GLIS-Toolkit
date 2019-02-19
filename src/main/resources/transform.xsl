@@ -23,9 +23,7 @@
 				<address><xsl:value-of select="hold_address"/></address>
 				<country><xsl:value-of select="hold_country"/></country>
 			</location>
-			<xsl:if test="operation = 'update'">
-				<sampledoi><xsl:value-of select="sample_doi"/></sampledoi>
-			</xsl:if>
+			<sampledoi><xsl:value-of select="sample_doi"/></sampledoi>
 			<sampleid><xsl:value-of select="sample_id"/></sampleid>
 			<date><xsl:value-of select="date"/></date>
 			<method><xsl:value-of select="method"/></method>
