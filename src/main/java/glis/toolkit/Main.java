@@ -4,7 +4,6 @@ import com.mashape.unirest.http.HttpResponse;
 import com.mashape.unirest.http.Unirest;
 import org.apache.commons.configuration2.PropertiesConfiguration;
 import org.apache.commons.configuration2.builder.fluent.Configurations;
-import org.apache.http.HttpException;
 import org.apache.http.HttpStatus;
 import org.joox.Match;
 import org.sql2o.Connection;
@@ -98,14 +97,13 @@ public class Main {
 		conf.put("glis_username",glisUsername);
 		conf.put("glis_password",glisPassword);
 
-		Integer count = 0;
+		int count = 0;
 		for (String id: ids) {
 			Map<String, Object> pgrfa = select(conn -> conn.createQuery("select * from pgrfas where id=:id").addParameter("id", id)).get(0);
 
 			String   wiews      = pgrfa.get("hold_wiews").toString();
 			String   pid        = pgrfa.get("hold_pid").toString();
 			Document doc        = buildDocument(id, pgrfa, conf);
-
 			Document request    = transform(doc,     "transform.xsl");
 			request             = transform(request, "prune.xsl");
 			String   xmlRequest = $(request).toString();
@@ -139,7 +137,7 @@ public class Main {
 				insertResult(operation, result, doi, sampleId, genus, error);
 				markAsProcessed(id);
 				count++;
-				System.out.println("Processed sample [" + count.toString() + "][" + sampleId + "]: " + result);
+				System.out.println("Processed sample [" + count + "][" + sampleId + "]: " + result);
 			} catch (com.mashape.unirest.http.exceptions.UnirestException e) {
 				System.err.println("Exception: " + e.getMessage());
 				Unirest.shutdown();
@@ -159,16 +157,16 @@ public class Main {
 		List<Map<String, Object>> targets     = select(conn -> conn.createQuery("select * from targets     where pgrfa_id=:pgrfa_id").addParameter("pgrfa_id", id));
 		List<Map<String, Object>> tkws        = select(conn -> conn.createQuery("select k.* from tkws k, targets t where t.pgrfa_id=:pgrfa_id and t.id=k.target_id").addParameter("pgrfa_id", id));
 
-		return $("root",
-				 addMap($("conf"),        conf),
-				 addMap($("pgrfa"),       pgrfa),
-				 addList($("actor"),      actors),
-				 addList($("identifier"), identifiers),
-				 addList($("name"),       names),
-				 addList($("progdoi"),    progdois),
-				 addList($("target"),     targets),
-				 addList($("tkw"),        tkws)
-		).document();
+		Match result = $("root",
+				 addMap("conf",  conf),
+				 addMap("pgrfa", pgrfa));
+		addList(result, "actor",      actors);
+		addList(result, "identifier", identifiers);
+		addList(result, "name",       names);
+		addList(result, "progdoi",    progdois);
+		addList(result, "target",     targets);
+		addList(result, "tkw",        tkws);
+		return result.document();
 	}
 
 	private static Document transform(Document doc, String xslPath) {
@@ -209,12 +207,13 @@ public class Main {
 		}
 	}
 
-	private static Match addList(Match m, List<Map<String, Object>> list) {
-		list.forEach(map -> addMap(m, map));
+	private static Match addList(Match m, String label, List<Map<String, Object>> list) {
+		list.forEach(map -> m.append(addMap(label, map)));
 		return m;
 	}
 
-	private static Match addMap(Match m, Map<String, Object> map) {
+	private static Match addMap(String label, Map<String, Object> map) {
+    	Match m = $(label);
 		map.entrySet().stream()
 				.filter(entry -> entry.getValue() != null)
 				.forEach(entry -> m.append($(entry.getKey()).text(entry.getValue().toString())));
