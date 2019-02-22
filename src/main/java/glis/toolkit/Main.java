@@ -28,7 +28,8 @@ public class Main {
 	private static String  glisUrl;
 	private static String  glisUsername;
 	private static String  glisPassword;
-	private static Integer qlimit;
+    private static String  dbVersion;
+    private static Integer qlimit;
 	private static Sql2o   sql2o;
 
 	/*
@@ -37,17 +38,17 @@ public class Main {
     public static void main(String[] args) {
 
 		try {
-			//Redirect standard error to file
-			PrintStream console = System.err;	// Save console for later use if required
-			File file = new File(TIMESTAMP + "_" + "errors.txt");
-			try {
-				FileOutputStream fos = new FileOutputStream(file);
-				PrintStream ps = new PrintStream(fos);
-				System.setErr(ps);
-			} catch (FileNotFoundException e) {
-				e.printStackTrace();
-				System.exit(1);
-			}
+            //Redirect standard error to file
+            PrintStream console = System.err;	// Save console for later use if required
+            File file = new File(TIMESTAMP + "_" + "errors.txt");
+            try {
+                FileOutputStream fos = new FileOutputStream(file);
+                PrintStream ps = new PrintStream(fos);
+                System.setErr(ps);
+            } catch (FileNotFoundException e) {
+                e.printStackTrace();
+                System.exit(1);
+            }
 
 			File fLock = new File("lock.lck");
 			// file-based locking mechanism to ensure that only one instance is running at any given time
@@ -67,13 +68,18 @@ public class Main {
 			glisUrl = config.getString("glis.url");
 			qlimit = Integer.parseInt(config.getString("db.query_limit"));
 			glisUsername = config.getString("glis.username");
-			glisPassword = config.getString("glis.password");
+            glisPassword = config.getString("glis.password");
+
+            //Get DB version and sets to 1 if not specified
+            dbVersion = config.getString("db.version");
+            dbVersion =((dbVersion != null) && (!dbVersion.isEmpty())) ? dbVersion : "1";
 
 			//Print configuration to both the console and to errors.txt
 			String configuration = "Configuration\n" +
 				"Database URL:      [" + url + "]\n" +
 				"Database username: [" + username + "]\n" +
-				"Database password: [" + password + "]\n" +
+                "Database password: [" + password + "]\n" +
+                "Database version:  [" + dbVersion + "]\n" +
 				"Query limit:       [" + qlimit + "]\n" +
 				"GLIS URL:          [" + glisUrl + "]\n" +
 				"GLIS username:     [" + glisUsername + "]\n" +
@@ -133,8 +139,14 @@ public class Main {
 			String   wiews      = pgrfa.get("hold_wiews").toString();
 			String   pid        = pgrfa.get("hold_pid").toString();
 
-			// Build the XML document
-			Document doc        = buildDocument(id, pgrfa, conf);
+			// Build the XML document according to the DB version
+            Document doc = null;
+            if (dbVersion.equals("1")) {
+                doc = buildDocumentV1(id, pgrfa, conf);
+            } else {
+                String sample_id = pgrfa.get("sample_id").toString();
+                doc = buildDocumentV2(sample_id, pgrfa, conf);
+            }
 			//DEBUG $(doc).write(new File("output.xml"));
 
 			// Transform XML using the XSL stylesheet and then transform again removing all empty elements
@@ -158,7 +170,6 @@ public class Main {
 				String sampleId = $(response).child("sampleid").text();
 				String genus    = $(response).child("genus").text();
 				String error    = $(response).child("error").text();
-				//DEBUG System.out.println(genus + "\t" + sampleId + "\t" + doi + "\t" + error);
 
 				// Set the result of the transaction
 				String result   = ((error != null) && (!error.isEmpty())) ? "KO" : "OK";
@@ -180,8 +191,8 @@ public class Main {
 			}
 			// Catch any exception and log it to the console and to the errors file
 			catch (com.mashape.unirest.http.exceptions.UnirestException e) {
-				System.out.println("Exception: " + e.getMessage());
-				System.err.println("Exception: " + e.getMessage());
+				System.out.println("Exception: " + e.getStackTrace());
+				System.err.println("Exception: " + e.getStackTrace());
 				Unirest.shutdown();
 				System.exit(1);
 			}
@@ -189,30 +200,57 @@ public class Main {
 		Unirest.shutdown();
 	}
 
-	/*
-	 * Builds the XML document by extracting the various rows related to the passed pgrfa
-	 */
-	private static Document buildDocument(String id, Map<String, Object> pgrfa, Map<String, Object> conf) throws ParserConfigurationException {
+    /*
+     * Builds the XML document by extracting the various rows related to the passed pgrfa
+     * Works on v1 database schema
+     */
+    private static Document buildDocumentV1(String id, Map<String, Object> pgrfa, Map<String, Object> conf) throws ParserConfigurationException {
 
-		// Get related rowsets
-		List<Map<String, Object>> actors      = select(conn -> conn.createQuery("select * from actors      where pgrfa_id=:pgrfa_id").addParameter("pgrfa_id", id));
-		List<Map<String, Object>> identifiers = select(conn -> conn.createQuery("select * from identifiers where pgrfa_id=:pgrfa_id").addParameter("pgrfa_id", id));
-		List<Map<String, Object>> names       = select(conn -> conn.createQuery("select * from names       where pgrfa_id=:pgrfa_id").addParameter("pgrfa_id", id));
-		List<Map<String, Object>> progdois    = select(conn -> conn.createQuery("select * from progdois    where pgrfa_id=:pgrfa_id").addParameter("pgrfa_id", id));
-		List<Map<String, Object>> targets     = select(conn -> conn.createQuery("select * from targets     where pgrfa_id=:pgrfa_id").addParameter("pgrfa_id", id));
-		List<Map<String, Object>> tkws        = select(conn -> conn.createQuery("select k.* from tkws k, targets t where t.pgrfa_id=:pgrfa_id and t.id=k.target_id").addParameter("pgrfa_id", id));
+        // Get related rowsets
+        List<Map<String, Object>> actors      = select(conn -> conn.createQuery("select * from actors      where pgrfa_id=:pgrfa_id").addParameter("pgrfa_id", id));
+        List<Map<String, Object>> identifiers = select(conn -> conn.createQuery("select * from identifiers where pgrfa_id=:pgrfa_id").addParameter("pgrfa_id", id));
+        List<Map<String, Object>> names       = select(conn -> conn.createQuery("select * from names       where pgrfa_id=:pgrfa_id").addParameter("pgrfa_id", id));
+        List<Map<String, Object>> progdois    = select(conn -> conn.createQuery("select * from progdois    where pgrfa_id=:pgrfa_id").addParameter("pgrfa_id", id));
+        List<Map<String, Object>> targets     = select(conn -> conn.createQuery("select * from targets     where pgrfa_id=:pgrfa_id").addParameter("pgrfa_id", id));
+        List<Map<String, Object>> tkws        = select(conn -> conn.createQuery("select k.* from tkws k, targets t where t.pgrfa_id=:pgrfa_id and t.id=k.target_id").addParameter("pgrfa_id", id));
 
-		Match result = $("root",
-				 addMap("conf",  conf),
-				 addMap("pgrfa", pgrfa));
-		addList(result, "actor",      actors);
-		addList(result, "identifier", identifiers);
-		addList(result, "name",       names);
-		addList(result, "progdoi",    progdois);
-		addList(result, "target",     targets);
-		addList(result, "tkw",        tkws);
+        Match result = $("root",
+                addMap("conf",  conf),
+                addMap("pgrfa", pgrfa));
+        addList(result, "actor",      actors);
+        addList(result, "identifier", identifiers);
+        addList(result, "name",       names);
+        addList(result, "progdoi",    progdois);
+        addList(result, "target",     targets);
+        addList(result, "tkw",        tkws);
+        return result.document();
+    }
+
+    /*
+     * Builds the XML document by extracting the various rows related to the passed pgrfa
+     * Works on v2 database schema
+     */
+    private static Document buildDocumentV2(String sid, Map<String, Object> pgrfa, Map<String, Object> conf) throws ParserConfigurationException {
+
+        // Get related rowsets
+        List<Map<String, Object>> actors      = select(conn -> conn.createQuery("select * from actors      where sample_id=:sid").addParameter("sid", sid));
+        List<Map<String, Object>> identifiers = select(conn -> conn.createQuery("select * from identifiers where sample_id=:sid").addParameter("sid", sid));
+        List<Map<String, Object>> names       = select(conn -> conn.createQuery("select * from names       where sample_id=:pgrfa_id").addParameter("pgrfa_id", sid));
+        List<Map<String, Object>> targets     = select(conn -> conn.createQuery("select * from targets     where sample_id=:sid").addParameter("sid", sid));
+
+        List<Map<String, Object>> progdois = explodeProgDois(pgrfa.get("progdois"), sid);
+        List<Map<String, Object>> tkws     = explodeTkws(targets);
+        Match result = $("root",
+                addMap("conf",  conf),
+                addMap("pgrfa", pgrfa));
+        addList(result, "actor",      actors);
+        addList(result, "identifier", identifiers);
+        addList(result, "name",       names);
+        addList(result, "progdoi",    progdois);
+        addList(result, "target",     targets);
+        addList(result, "tkw",        tkws);
 		return result.document();
-	}
+    }
 
 	/*
      * Transforms the XML document using the passed XSLT stylesheet
@@ -282,28 +320,48 @@ public class Main {
 
 
 	/*
-	 * Contains some code that will become useful later on
+     * Process progenitor DOIs list by splitting the field into a new list of maps
 	 */
-	private static void dump() {
-		// Process target keywords by splitting the target.tkws field into a new list of maps
-		List<Map<String, Object>> targets = new ArrayList<Map<String, Object>>();	//Delete
-		List<Map<String, Object>> tkws = new ArrayList<Map<String, Object>>();
-		for (Map<String, Object> target : targets) {
-			String tid = target.get("id") + "";
-			Object tkwObj = target.get("tkws");
-			if (tkwObj != null) {
-				String tkwString = tkwObj.toString();
-				if ((tkwString != null) && (!tkwString.isEmpty())) {
-					String[] temp = tkwString.split("\\s*,\\s*");
-					for (String tkw : temp) {
-						Map<String, Object> tkmap = new HashMap<String, Object>();
-						tkmap.put("target_id", tid);
-						tkmap.put("value", tkw.trim());
-						tkws.add(tkmap);
-					}
+	private static List<Map<String, Object>> explodeProgDois(Object listObj, String sid) {
+		List<Map<String, Object>> subList = new ArrayList<Map<String, Object>>();
+        if (listObj != null) {
+			String list = listObj.toString();
+			if (!list.isEmpty()) {
+				String[] temp = list.split("\\s*\\|\\s*"); // '|' is the separator
+				for (String itm : temp) {
+					Map<String, Object> map = new HashMap<String, Object>();
+					map.put("sample_id", sid);
+					map.put("doi", itm.trim());
+					subList.add(map);
 				}
 			}
 		}
-
+        return subList;
 	}
+
+
+    /*
+     * Process target keywords by splitting the target.tkws field into a new list of maps
+    */
+    private static List<Map<String, Object>> explodeTkws(List<Map<String, Object>> targets) {
+        List<Map<String, Object>> tkws = new ArrayList<Map<String, Object>>();
+		for (Map<String, Object> target : targets) {
+            String tid = target.get("id") + "";
+            Object tkwObj = target.get("tkws");
+            if (tkwObj != null) {
+                String tkwString = tkwObj.toString();
+                if ((tkwString != null) && (!tkwString.isEmpty())) {
+                    String[] temp = tkwString.split("\\s*\\|\\s*"); // '|' is the separator
+                    for (String tkw : temp) {
+                        Map<String, Object> tkmap = new HashMap<String, Object>();
+                        tkmap.put("target_id", tid);
+                        tkmap.put("value", tkw.trim());
+                        tkws.add(tkmap);
+                    }
+                }
+            }
+        }
+		return tkws;
+    }
+
 }
