@@ -71,13 +71,15 @@
 
 			<xsl:if test="/root/actor[role = 'pr']">
 				<acquisition>
-					<provider>
-						<wiews><xsl:value-of select="wiews"/></wiews>
-						<pid><xsl:value-of select="pid"/></pid>
-						<name><xsl:value-of select="name"/></name>
-						<address><xsl:value-of select="address"/></address>
-						<country><xsl:value-of select="country"/></country>
-					</provider>
+					<xsl:for-each select="/root/actor[role = 'pr']">
+						<provider>
+							<wiews><xsl:value-of select="wiews"/></wiews>
+							<pid><xsl:value-of select="pid"/></pid>
+							<name><xsl:value-of select="name"/></name>
+							<address><xsl:value-of select="address"/></address>
+							<country><xsl:value-of select="country"/></country>
+						</provider>
+					</xsl:for-each>
 					<sampleid><xsl:value-of select="prov_sid"/></sampleid>
 					<provenance><xsl:value-of select="provenance"/></provenance>
 				</acquisition>
@@ -86,7 +88,7 @@
 			<collection>
 				<xsl:if test="/root/actor[role = 'co']">
 					<collectors>
-						<xsl:for-each select="/actors[role = 'co']">
+						<xsl:for-each select="/root/actor[role = 'co']">
 							<collector>
 								<wiews><xsl:value-of select="wiews"/></wiews>
 								<pid><xsl:value-of select="pid"/></pid>
@@ -113,7 +115,7 @@
 			<breeding>
 				<xsl:if test="/root/actor[role = 'br']">
 					<breeders>
-						<xsl:for-each select="/actors[role = 'co']">
+						<xsl:for-each select="/root/actor[role = 'br']">
 							<breeder>
 								<wiews><xsl:value-of select="wiews"/></wiews>
 								<pid><xsl:value-of select="pid"/></pid>
