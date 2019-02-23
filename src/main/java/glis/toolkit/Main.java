@@ -38,17 +38,17 @@ public class Main {
     public static void main(String[] args) {
 
 		try {
-            //Redirect standard error to file
-            PrintStream console = System.err;	// Save console for later use if required
-            File file = new File(TIMESTAMP + "_" + "errors.txt");
-            try {
-                FileOutputStream fos = new FileOutputStream(file);
-                PrintStream ps = new PrintStream(fos);
-                System.setErr(ps);
-            } catch (FileNotFoundException e) {
-                e.printStackTrace();
-                System.exit(1);
-            }
+			//Redirect standard error to file
+			PrintStream console = System.err;	// Save console for later use if required
+			File file = new File(TIMESTAMP + "_" + "errors.txt");
+			try {
+				FileOutputStream fos = new FileOutputStream(file);
+				PrintStream ps = new PrintStream(fos);
+				System.setErr(ps);
+			} catch (FileNotFoundException e) {
+				e.printStackTrace();
+				System.exit(1);
+			}
 
 			File fLock = new File("lock.lck");
 			// file-based locking mechanism to ensure that only one instance is running at any given time
@@ -95,7 +95,8 @@ public class Main {
 			fLock.delete();
 			System.out.println("Processing complete.");
 		} catch (Exception e) {
-			System.err.println(e.getStackTrace());
+			e.printStackTrace();
+			System.out.println("An error occurred. Please check file " + TIMESTAMP + "_" + "errors.txt");
 		}
     }
 
