@@ -27,18 +27,6 @@
       <version>8.0.15</version>
     </dependency>
     <!-- xml processing -->
-    <!--
-    <dependency>
-      <groupId>com.jamesmurty.utils</groupId>
-      <artifactId>java-xmlbuilder</artifactId>
-      <version>1.2</version>
-    </dependency>
-    <dependency>
-      <groupId>com.github.fluentxml4j</groupId>
-      <artifactId>fluentxml4j-core</artifactId>
-      <version>2.2.1</version>
-    </dependency>
-    -->
     <dependency>
       <groupId>org.jooq</groupId>
       <artifactId>joox-java-6</artifactId>
@@ -49,6 +37,12 @@
       <groupId>com.mashape.unirest</groupId>
       <artifactId>unirest-java</artifactId>
       <version>1.4.9</version>
+    </dependency>
+    <!-- hsqldb database -->
+    <dependency>
+      <groupId>org.hsqldb</groupId>
+      <artifactId>hsqldb</artifactId>
+      <version>2.4.1</version>
     </dependency>
     <!-- apache commons utilities -->
     <dependency>
