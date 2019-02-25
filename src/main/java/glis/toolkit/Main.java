@@ -64,6 +64,9 @@ public class Main {
 			String username = config.getString("db.username");
 			String password = config.getString("db.password");
 
+			//Initialize HSQLDB driver if the embedded database is used
+			if (url.contains(":hsqldb:")) Class.forName("org.hsqldb.jdbcDriver");
+
 			sql2o = new Sql2o(url, username, password);
 			glisUrl = config.getString("glis.url");
 			qlimit = Integer.parseInt(config.getString("db.query_limit"));
