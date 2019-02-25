@@ -38,24 +38,12 @@ public class Main {
     public static void main(String[] args) {
 
 		try {
-			//Redirect standard error to file
-			PrintStream console = System.err;	// Save console for later use if required
-			File file = new File(TIMESTAMP + "_" + "errors.txt");
-			try {
-				FileOutputStream fos = new FileOutputStream(file);
-				PrintStream ps = new PrintStream(fos);
-				System.setErr(ps);
-			} catch (FileNotFoundException e) {
-				e.printStackTrace();
-				System.exit(1);
-			}
-
 			File fLock = new File("lock.lck");
 			// file-based locking mechanism to ensure that only one instance is running at any given time
 			if (!fLock.exists()) {
 				fLock.createNewFile();
 			} else {
-				System.out.println("Lock file 'lock.lck' exists. Either another instance of the Toolkit is running or it has terminated in an error. Please make sure no other instance of the Toolkit is running, or fix the error, before removing the lock file and trying again");
+				System.err.println("Lock file 'lock.lck' exists. Either another instance of the Toolkit is running or it has terminated in an error. Please make sure no other instance of the Toolkit is running, or fix the error, before removing the lock file and trying again");
 				System.exit(1);
 			}
 			// read configuration
@@ -87,7 +75,6 @@ public class Main {
 				"GLIS URL:          [" + glisUrl + "]\n" +
 				"GLIS username:     [" + glisUsername + "]\n" +
 				"GLIS password:     [" + glisPassword + "]\n";
-			System.out.println(configuration);
 			System.err.println(configuration);
 
 			// Register first then update
@@ -99,7 +86,6 @@ public class Main {
 			System.out.println("Processing complete.");
 		} catch (Exception e) {
 			e.printStackTrace();
-			System.out.println("An error occurred. Please check file " + TIMESTAMP + "_" + "errors.txt");
 		}
     }
 
@@ -151,13 +137,10 @@ public class Main {
                 String sample_id = pgrfa.get("sample_id").toString();
                 doc = buildDocumentV2(sample_id, pgrfa, conf);
             }
-			//DEBUG $(doc).write(new File("output.xml"));
 
 			// Transform XML using the XSL stylesheet and then transform again removing all empty elements
 			Document request    = transform(doc,     "transform.xsl");
-			//DEBUG $(doc).write(new File("transformed.xml"));
 			request             = transform(request, "prune.xsl");
-			//DEBUG $(doc).write(new File("pruned.xml"));
 			String   xmlRequest = $(request).toString();
 
 			// Attempts the HTTP POST transaction to GLIS and obtains result
@@ -180,7 +163,8 @@ public class Main {
 
 				// If there was a connection error, abort
 				if (httpResponse.getStatus() == HttpStatus.SC_INTERNAL_SERVER_ERROR) {
-					System.err.println(sampleId + " - " + genus + " - " + error);
+					System.out.println(sampleId + " - " + genus + " - " + error);
+					//System.err.println(sampleId + " - " + genus + " - " + error);
 					Unirest.shutdown();
 					System.exit(1);
 				}
@@ -195,8 +179,7 @@ public class Main {
 			}
 			// Catch any exception and log it to the console and to the errors file
 			catch (com.mashape.unirest.http.exceptions.UnirestException e) {
-				System.out.println("Exception: " + e.getStackTrace());
-				System.err.println("Exception: " + e.getStackTrace());
+				e.printStackTrace();
 				Unirest.shutdown();
 				System.exit(1);
 			}
@@ -241,6 +224,8 @@ public class Main {
         List<Map<String, Object>> identifiers = select(conn -> conn.createQuery("select * from identifiers where sample_id=:sid").addParameter("sid", sid));
         List<Map<String, Object>> names       = select(conn -> conn.createQuery("select * from names       where sample_id=:pgrfa_id").addParameter("pgrfa_id", sid));
         List<Map<String, Object>> targets     = select(conn -> conn.createQuery("select * from targets     where sample_id=:sid").addParameter("sid", sid));
+
+        //System.out.println("DEBUG: QUERIES DONE");
 
         List<Map<String, Object>> progdois = explodeProgDois(pgrfa.get("progdois"), sid);
         List<Map<String, Object>> tkws     = explodeTkws(targets);
