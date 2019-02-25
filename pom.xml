@@ -4,9 +4,11 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
+<!-- mvn clean compile assembly:single -->
+
   <groupId>glis</groupId>
   <artifactId>toolkit</artifactId>
-  <version>1.0-SNAPSHOT</version>
+  <version>2.0</version>
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -94,17 +96,28 @@
         </plugin>
         <!-- Build an executable JAR -->
         <plugin>
-          <artifactId>maven-jar-plugin</artifactId>
-          <configuration>
-            <archive>
-              <manifest>
-                <addClasspath>true</addClasspath>
-                <classpathPrefix>lib/</classpathPrefix>
-                <mainClass>glis.toolkit.Main</mainClass>
-              </manifest>
-            </archive>
-          </configuration>
-        </plugin>
+		  <groupId>org.apache.maven.plugins</groupId>
+		  <artifactId>maven-assembly-plugin</artifactId>
+		  <version>3.0.0</version>
+		  <configuration>
+		    <descriptorRefs>
+		      <descriptorRef>jar-with-dependencies</descriptorRef>
+		    </descriptorRefs>
+		    <archive>
+		      <manifest>
+		        <mainClass>glis.toolkit.Main</mainClass>
+		      </manifest>
+		    </archive>
+		  </configuration>
+		  <executions>
+		    <execution>
+		      <phase>package</phase>
+		        <goals>
+		          <goal>single</goal>
+		        </goals>
+			</execution>
+		  </executions>
+	    </plugin>
         <plugin>
           <groupId>org.codehaus.mojo</groupId>
           <artifactId>exec-maven-plugin</artifactId>
