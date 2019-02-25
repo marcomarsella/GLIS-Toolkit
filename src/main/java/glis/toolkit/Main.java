@@ -12,6 +12,7 @@ import org.sql2o.Sql2o;
 import org.w3c.dom.Document;
 
 import javax.xml.parsers.ParserConfigurationException;
+import java.math.BigInteger;
 import java.io.*;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -52,8 +53,11 @@ public class Main {
 			String username = config.getString("db.username");
 			String password = config.getString("db.password");
 
-			//Initialize HSQLDB driver if the embedded database is used
+			//Initialize HSQLDB driver if used in db.url
 			if (url.contains(":hsqldb:")) Class.forName("org.hsqldb.jdbcDriver");
+
+			//Initialize Postgresql driver if used in db.url
+			if (url.contains(":postgresql:")) Class.forName("org.postgresql.Driver");
 
 			sql2o = new Sql2o(url, username, password);
 			glisUrl = config.getString("glis.url");
@@ -123,7 +127,7 @@ public class Main {
 		for (String id: ids) {
 
 			// Extract main pgrfa record
-			Map<String, Object> pgrfa = select(conn -> conn.createQuery("select * from pgrfas where id=:id").addParameter("id", id)).get(0);
+			Map<String, Object> pgrfa = select(conn -> conn.createQuery("select * from pgrfas where id=:id").addParameter("id", new BigInteger(id))).get(0);
 
 			// Save values to be used in response object
 			String   wiews      = pgrfa.get("hold_wiews").toString();
@@ -257,7 +261,7 @@ public class Main {
 		final String query = "update pgrfas set processed = 'y' where id=:id";
 		try (Connection conn = sql2o.open()) {
 			conn.createQuery(query)
-					.addParameter("id", Integer.parseInt(id))
+					.addParameter("id", new BigInteger(id))
 					.executeUpdate();
 		}
 	}
