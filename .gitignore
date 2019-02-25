@@ -1,5 +1,6 @@
 .idea/
 toolkit.iml
 toolkit.jar
+db.jar
 config.txt
 db/
