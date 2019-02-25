@@ -9,16 +9,16 @@ public class DB {
 
     public static void main(String[] args) {
         try {
-            System.err.println("starting database");
+            System.err.println("Starting embedded database");
 
             HsqlProperties p = new HsqlProperties();
-            p.setProperty("server.database.0", "file:db/glis;user=glis;password=glis;hsqldb.default_table_type=cached");
-            p.setProperty("server.dbname.0", "glis");
+            p.setProperty("server.database.0", "file:db/glistk;user=glistk;password=glistk;hsqldb.default_table_type=cached");
+            p.setProperty("server.dbname.0", "glistk");
             Server server = new Server();
             server.setProperties(p);
             server.start();
             Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-                System.err.println("shutting down database");
+                System.err.println("Stopping down database");
 
                 server.shutdownCatalogs(CLOSEMODE_NORMAL);
             }));
