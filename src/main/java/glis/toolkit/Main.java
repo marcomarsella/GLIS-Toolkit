@@ -32,6 +32,8 @@ public class Main {
     private static String  dbVersion;
     private static Integer qlimit;
 	private static Sql2o   sql2o;
+	private static Boolean doiLog;
+	private static Writer  fDOI;
 
 	/*
 	 * Main method, sets up the environment and invokes registration and update functions
@@ -64,8 +66,21 @@ public class Main {
 			qlimit = Integer.parseInt(config.getString("db.query_limit"));
 			glisUsername = config.getString("glis.username");
             glisPassword = config.getString("glis.password");
+            String temp = config.getString("doi.log");
+            if (temp == null) {
+            	doiLog = false;
+			} else {
+				doiLog = temp.toLowerCase().equals("y");
+			}
 
-            //Get DB version and sets to 1 if not specified
+            // If DOI log is requested, create writer and write header. Otherwise fDOI stays NULL
+            if (doiLog) {
+				String fDOIName = TIMESTAMP + "_" + "DOI.txt";
+				fDOI = new FileWriter(fDOIName);
+				fDOI.write("WIEWS\tPID\tGenus\tSampleID\tDOI\n");    // Write header to DOI log
+			}
+
+			//Get DB version and sets to 1 if not specified
             dbVersion = config.getString("db.version");
             dbVersion =((dbVersion != null) && (!dbVersion.isEmpty())) ? dbVersion : "1";
 
@@ -78,25 +93,35 @@ public class Main {
 				"Query limit:       [" + qlimit + "]\n" +
 				"GLIS URL:          [" + glisUrl + "]\n" +
 				"GLIS username:     [" + glisUsername + "]\n" +
-				"GLIS password:     [" + glisPassword + "]\n";
+				"GLIS password:     [" + glisPassword + "]\n" +
+				"Write DOI log:     [" + (doiLog ? "Yes" : "No") + "]\n";
 			System.err.println(configuration);
 
 			// Register first then update
-				process("register");
-				process("update");
+				process("register", fDOI);
+				process("update", fDOI);
 
-			// Remove lock file and exit normally
+			// Remove lock file
 			fLock.delete();
 			System.out.println("Processing complete.");
 		} catch (Exception e) {
 			e.printStackTrace();
+		} finally {
+			if (fDOI != null) {
+				try {
+					fDOI.close();
+				} catch (IOException e) {
+					// This is unrecoverable. Just report it and move on
+					e.printStackTrace();
+				}
+			}
 		}
     }
 
     /*
      * Finds pgrfas rows to process and processes them according to the operation requested
      */
-	private static void process(String operation) throws Exception {
+	private static void process(String operation, Writer fDOI) throws Exception {
 
 		// Build list of pgrfa ids to register. Order by id to ensure a logical sequence
 		List<String> ids = select(conn ->
@@ -168,9 +193,14 @@ public class Main {
 				// If there was a connection error, abort
 				if (httpResponse.getStatus() == HttpStatus.SC_INTERNAL_SERVER_ERROR) {
 					System.out.println(sampleId + " - " + genus + " - " + error);
-					//System.err.println(sampleId + " - " + genus + " - " + error);
 					Unirest.shutdown();
+					if (fDOI != null) fDOI.close();
 					System.exit(1);
+				}
+
+				// Write to DOI log if it has been created, if successful and operation is "register"
+				if ((fDOI != null) && Objects.equals(operation, "register") && Objects.equals(result,"OK")) {
+					fDOI.write(wiews + "\t" + pid + "\t" + genus + "\t" + sampleId + "\t" + doi + "\n");
 				}
 
 				// Write result to DB and mark pgrfas row as processed
@@ -185,6 +215,7 @@ public class Main {
 			catch (com.mashape.unirest.http.exceptions.UnirestException e) {
 				e.printStackTrace();
 				Unirest.shutdown();
+				if (fDOI != null) fDOI.close();
 				System.exit(1);
 			}
 		}
