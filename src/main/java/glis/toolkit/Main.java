@@ -127,9 +127,6 @@ public class Main {
 					e.printStackTrace();
 				}
 			}
-			if (fLock.exists()) {
-				fLock.delete();
-			}
 		}
     }
 
