@@ -38,8 +38,7 @@ public class Main {
 	private static String  dbUrl;
 	private static String  dbUsername;
 	private static String  dbPassword;
-	//private static String  dbDriverName;
-	private static String  dbDriverPath;
+	private static String  dbDriverName;
     private static String  dbVersion;
     private static Integer qlimit;
 	private static Sql2o   sql2o;
@@ -84,7 +83,7 @@ public class Main {
 			dbUsername = config.getString("db.username");
 			dbPassword = config.getString("db.password");
 			//dbDriverName = findDriverName(config);
-			dbDriverPath = config.getString("db.driver.path");
+			dbDriverName = config.getString("db.driver.name");
 
 			//Get DB version and sets to 1 if not specified
             dbVersion = config.getString("db.version");
@@ -96,6 +95,7 @@ public class Main {
 					"Database username: [" + dbUsername + "]\n" +
 					"Database password: [" + dbPassword + "]\n" +
 					"Database version:  [" + dbVersion + "]\n" +
+					"Driver name:       [" + dbDriverName + "]\n" +
 					"Query limit:       [" + qlimit + "]\n" +
 					"GLIS URL:          [" + glisUrl + "]\n" +
 					"GLIS username:     [" + glisUsername + "]\n" +
@@ -103,7 +103,10 @@ public class Main {
 					"Write DOI log:     [" + (doiLog ? "Yes" : "No") + "]\n";
 			System.err.println(configuration);
 
-			loadDriver();
+			//If db.url does not contain "hsqldb", try to load the driver in the jdbcDriver directory
+			if (!dbUrl.contains(":hsqldb:")) {
+				loadDriver();
+			}
 			sql2o = new Sql2o(dbUrl, dbUsername, dbPassword);
 
 			// Register first then update
@@ -413,18 +416,18 @@ public class Main {
 	*/
 
     private static void loadDriver() throws Exception {
-    	if (dbDriverPath != null) {
+    	if (dbDriverName != null) {
 			URLClassLoader loader = (URLClassLoader)ClassLoader.getSystemClassLoader();
 			Method method = URLClassLoader.class.getDeclaredMethod("addURL", URL.class);
 			method.setAccessible(true);
-			method.invoke(loader, Paths.get(dbDriverPath).toUri().toURL());
+			method.invoke(loader, Paths.get("jdbcDriver", dbDriverName).toUri().toURL());
 		}
+		Class.forName("com.mysql.jdbc.Driver");
 		System.err.println("Drivers:");
 		Enumeration<Driver> drivers = DriverManager.getDrivers();
 		while(drivers.hasMoreElements()) {
 			Driver d = drivers.nextElement();
 			System.err.println("- " + d);
 		}
-		//Class.forName(dbDriverName);
 	}
 }
