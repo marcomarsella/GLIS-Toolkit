@@ -12,8 +12,14 @@ import org.sql2o.Sql2o;
 import org.w3c.dom.Document;
 
 import javax.xml.parsers.ParserConfigurationException;
+import java.lang.reflect.Method;
 import java.math.BigInteger;
 import java.io.*;
+import java.net.URL;
+import java.net.URLClassLoader;
+import java.nio.file.Paths;
+import java.sql.Driver;
+import java.sql.DriverManager;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.function.Function;
@@ -29,6 +35,11 @@ public class Main {
 	private static String  glisUrl;
 	private static String  glisUsername;
 	private static String  glisPassword;
+	private static String  dbUrl;
+	private static String  dbUsername;
+	private static String  dbPassword;
+	//private static String  dbDriverName;
+	private static String  dbDriverPath;
     private static String  dbVersion;
     private static Integer qlimit;
 	private static Sql2o   sql2o;
@@ -40,8 +51,8 @@ public class Main {
 	 */
     public static void main(String[] args) {
 
+		File fLock = new File("lock.lck");
 		try {
-			File fLock = new File("lock.lck");
 			// file-based locking mechanism to ensure that only one instance is running at any given time
 			if (!fLock.exists()) {
 				fLock.createNewFile();
@@ -51,17 +62,6 @@ public class Main {
 			}
 			// read configuration
 			PropertiesConfiguration config = new Configurations().properties(new File(CONFIG_PATH));
-			String url = config.getString("db.url");
-			String username = config.getString("db.username");
-			String password = config.getString("db.password");
-
-			//Initialize HSQLDB driver if used in db.url
-			if (url.contains(":hsqldb:")) Class.forName("org.hsqldb.jdbcDriver");
-
-			//Initialize Postgresql driver if used in db.url
-			if (url.contains(":postgresql:")) Class.forName("org.postgresql.Driver");
-
-			sql2o = new Sql2o(url, username, password);
 			glisUrl = config.getString("glis.url");
 			qlimit = Integer.parseInt(config.getString("db.query_limit"));
 			glisUsername = config.getString("glis.username");
@@ -80,26 +80,35 @@ public class Main {
 				fDOI.write("WIEWS\tPID\tGenus\tSampleID\tDOI\n");    // Write header to DOI log
 			}
 
+			dbUrl = config.getString("db.url");
+			dbUsername = config.getString("db.username");
+			dbPassword = config.getString("db.password");
+			//dbDriverName = findDriverName(config);
+			dbDriverPath = config.getString("db.driver.path");
+
 			//Get DB version and sets to 1 if not specified
             dbVersion = config.getString("db.version");
             dbVersion =((dbVersion != null) && (!dbVersion.isEmpty())) ? dbVersion : "1";
 
 			//Print configuration to both the console and to errors.txt
 			String configuration = "Configuration\n" +
-				"Database URL:      [" + url + "]\n" +
-				"Database username: [" + username + "]\n" +
-                "Database password: [" + password + "]\n" +
-                "Database version:  [" + dbVersion + "]\n" +
-				"Query limit:       [" + qlimit + "]\n" +
-				"GLIS URL:          [" + glisUrl + "]\n" +
-				"GLIS username:     [" + glisUsername + "]\n" +
-				"GLIS password:     [" + glisPassword + "]\n" +
-				"Write DOI log:     [" + (doiLog ? "Yes" : "No") + "]\n";
+					"Database URL:      [" + dbUrl + "]\n" +
+					"Database username: [" + dbUsername + "]\n" +
+					"Database password: [" + dbPassword + "]\n" +
+					"Database version:  [" + dbVersion + "]\n" +
+					"Query limit:       [" + qlimit + "]\n" +
+					"GLIS URL:          [" + glisUrl + "]\n" +
+					"GLIS username:     [" + glisUsername + "]\n" +
+					"GLIS password:     [" + glisPassword + "]\n" +
+					"Write DOI log:     [" + (doiLog ? "Yes" : "No") + "]\n";
 			System.err.println(configuration);
 
+			loadDriver();
+			sql2o = new Sql2o(dbUrl, dbUsername, dbPassword);
+
 			// Register first then update
-				process("register", fDOI);
-				process("update", fDOI);
+			process("register", fDOI);
+			process("update", fDOI);
 
 			// Remove lock file
 			fLock.delete();
@@ -114,6 +123,9 @@ public class Main {
 					// This is unrecoverable. Just report it and move on
 					e.printStackTrace();
 				}
+			}
+			if (fLock.exists()) {
+				fLock.delete();
 			}
 		}
     }
@@ -388,4 +400,31 @@ public class Main {
 		return tkws;
     }
 
+    /*
+    private static String findDriverName(PropertiesConfiguration config) {
+    	String driverName = config.getString("db.driver.name");
+    	if (driverName != null) return driverName;
+
+		if (dbUrl.contains(":postgresql:")) return "org.postgresql.Driver";
+		//if (dbUrl.contains(":hsqldb:")) return "org.hsqldb.jdbcDriver";
+
+		return "org.hsqldb.jdbc.JDBCDriver"; // default
+	}
+	*/
+
+    private static void loadDriver() throws Exception {
+    	if (dbDriverPath != null) {
+			URLClassLoader loader = (URLClassLoader)ClassLoader.getSystemClassLoader();
+			Method method = URLClassLoader.class.getDeclaredMethod("addURL", URL.class);
+			method.setAccessible(true);
+			method.invoke(loader, Paths.get(dbDriverPath).toUri().toURL());
+		}
+		System.err.println("Drivers:");
+		Enumeration<Driver> drivers = DriverManager.getDrivers();
+		while(drivers.hasMoreElements()) {
+			Driver d = drivers.nextElement();
+			System.err.println("- " + d);
+		}
+		//Class.forName(dbDriverName);
+	}
 }
