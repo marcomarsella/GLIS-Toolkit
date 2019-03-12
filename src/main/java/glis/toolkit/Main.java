@@ -17,7 +17,6 @@ import java.math.BigInteger;
 import java.io.*;
 import java.net.URL;
 import java.net.URLClassLoader;
-import java.nio.file.Paths;
 import java.sql.Driver;
 import java.sql.DriverManager;
 import java.text.SimpleDateFormat;
@@ -82,7 +81,6 @@ public class Main {
 			dbUrl = config.getString("db.url");
 			dbUsername = config.getString("db.username");
 			dbPassword = config.getString("db.password");
-			//dbDriverName = findDriverName(config);
 			dbDriverName = config.getString("db.driver.name");
 
 			//Get DB version and sets to 1 if not specified
@@ -103,10 +101,7 @@ public class Main {
 					"Write DOI log:     [" + (doiLog ? "Yes" : "No") + "]\n";
 			System.err.println(configuration);
 
-			//If db.url does not contain "hsqldb", try to load the driver in the jdbcDriver directory
-			if (!dbUrl.contains(":hsqldb:")) {
-				loadDriver();
-			}
+			loadDriver();
 			sql2o = new Sql2o(dbUrl, dbUsername, dbPassword);
 
 			// Register first then update
@@ -400,26 +395,21 @@ public class Main {
 		return tkws;
     }
 
-    /*
-    private static String findDriverName(PropertiesConfiguration config) {
-    	String driverName = config.getString("db.driver.name");
-    	if (driverName != null) return driverName;
-
-		if (dbUrl.contains(":postgresql:")) return "org.postgresql.Driver";
-		//if (dbUrl.contains(":hsqldb:")) return "org.hsqldb.jdbcDriver";
-
-		return "org.hsqldb.jdbc.JDBCDriver"; // default
-	}
-	*/
-
     private static void loadDriver() throws Exception {
-    	if (dbDriverName != null) {
+		System.out.println(dbDriverName);
+
+		if (dbDriverName != null) {
+			File jarDir = new File(Main.class.getProtectionDomain().getCodeSource().getLocation().toURI()).getParentFile();
+			File jarFile = new File(jarDir, dbDriverName);
+
+			System.out.println(jarFile);
+
 			URLClassLoader loader = (URLClassLoader)ClassLoader.getSystemClassLoader();
 			Method method = URLClassLoader.class.getDeclaredMethod("addURL", URL.class);
 			method.setAccessible(true);
-			method.invoke(loader, Paths.get("jdbcDriver", dbDriverName).toUri().toURL());
+			method.invoke(loader, jarFile.toURI().toURL());
 		}
-		Class.forName("com.mysql.jdbc.Driver");
+		//Class.forName("com.mysql.jdbc.Driver");
 		System.err.println("Drivers:");
 		Enumeration<Driver> drivers = DriverManager.getDrivers();
 		while(drivers.hasMoreElements()) {
