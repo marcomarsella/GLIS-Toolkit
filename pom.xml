@@ -110,7 +110,7 @@
 		    </descriptorRefs>
 		    <archive>
 		      <manifest>
-		        <mainClass>glis.toolkit.Main</mainClass>
+		        <mainClass>glis.toolkit.Toolkit</mainClass>
 		      </manifest>
 		    </archive>
 		  </configuration>
@@ -128,7 +128,7 @@
           <artifactId>exec-maven-plugin</artifactId>
           <version>1.2.1</version>
           <configuration>
-            <mainClass>glis.toolkit.Main</mainClass>
+            <mainClass>glis.toolkit.Toolkit</mainClass>
           </configuration>
         </plugin>
       </plugins>
