@@ -5,12 +5,21 @@ import com.mashape.unirest.http.Unirest;
 import org.apache.commons.configuration2.PropertiesConfiguration;
 import org.apache.commons.configuration2.builder.fluent.Configurations;
 import org.apache.http.HttpStatus;
+import org.apache.http.client.HttpClient;
+import org.apache.http.conn.ssl.NoopHostnameVerifier;
+import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
+import org.apache.http.conn.ssl.TrustSelfSignedStrategy;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClients;
+import org.apache.http.ssl.SSLContextBuilder;
+import org.apache.http.ssl.SSLContexts;
 import org.joox.Match;
 import org.sql2o.Connection;
 import org.sql2o.Query;
 import org.sql2o.Sql2o;
 import org.w3c.dom.Document;
 
+import javax.net.ssl.SSLContext;
 import javax.xml.parsers.ParserConfigurationException;
 import java.io.File;
 import java.io.FileWriter;
@@ -22,6 +31,7 @@ import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.cert.X509Certificate;
 import java.sql.Driver;
 import java.sql.DriverManager;
 import java.text.SimpleDateFormat;
@@ -163,6 +173,24 @@ public class Toolkit {
         conf.put("glis_username", glisUsername);
         conf.put("glis_password", glisPassword);
 
+        // For GLIS test server, disable SSL checking if the Java version is not recent enough
+        if (glisUrl.contains("glistest")) {
+            String version = Runtime.class.getPackage().getImplementationVersion();
+            System.err.println("Java version: " + version);
+            String[] vArr = version.split("_");
+            if (Integer.parseInt(vArr[1]) < 101) {
+                System.err.println("Creating custom HTTP client for GLIS test server");
+                SSLContext sslContext = new SSLContextBuilder().loadTrustMaterial(null, new TrustSelfSignedStrategy() {
+                    public boolean isTrusted(X509Certificate[] chain, String authType) {
+                        return true;
+                    }
+                }).build();
+                HttpClient customHttpClient = HttpClients.custom().setSSLContext(sslContext)
+                        .setSSLHostnameVerifier(new NoopHostnameVerifier()).build();
+                Unirest.setHttpClient(customHttpClient);
+            }
+        }
+
         // Process each pgrfa in the list obtained by the query
         Integer count = 0;
         for (String id : ids) {
@@ -188,7 +216,7 @@ public class Toolkit {
             request = transform(request, "prune.xsl");
             String xmlRequest = $(request).toString();
 
-            // Attempts the HTTP POST transaction to GLIS and obtains result
+            // Attempts the HTTPS POST transaction to GLIS and obtains result
             try {
                 HttpResponse<String> httpResponse = Unirest.post(glisUrl)
                         .header("accept", "application/xml")
