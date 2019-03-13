@@ -17,6 +17,8 @@ import java.math.BigInteger;
 import java.io.*;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.sql.Driver;
 import java.sql.DriverManager;
@@ -24,6 +26,7 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.joox.JOOX.$;
 
@@ -38,7 +41,6 @@ public class Main {
 	private static String  dbUrl;
 	private static String  dbUsername;
 	private static String  dbPassword;
-	private static String  dbDriverName;
     private static String  dbVersion;
     private static Integer qlimit;
 	private static Sql2o   sql2o;
@@ -82,8 +84,6 @@ public class Main {
 			dbUrl = config.getString("db.url");
 			dbUsername = config.getString("db.username");
 			dbPassword = config.getString("db.password");
-			//dbDriverName = findDriverName(config);
-			dbDriverName = config.getString("db.driver.name");
 
 			//Get DB version and sets to 1 if not specified
             dbVersion = config.getString("db.version");
@@ -95,7 +95,6 @@ public class Main {
 					"Database username: [" + dbUsername + "]\n" +
 					"Database password: [" + dbPassword + "]\n" +
 					"Database version:  [" + dbVersion + "]\n" +
-					"Driver name:       [" + dbDriverName + "]\n" +
 					"Query limit:       [" + qlimit + "]\n" +
 					"GLIS URL:          [" + glisUrl + "]\n" +
 					"GLIS username:     [" + glisUsername + "]\n" +
@@ -400,29 +399,25 @@ public class Main {
 		return tkws;
     }
 
-    /*
-    private static String findDriverName(PropertiesConfiguration config) {
-    	String driverName = config.getString("db.driver.name");
-    	if (driverName != null) return driverName;
-
-		if (dbUrl.contains(":postgresql:")) return "org.postgresql.Driver";
-		//if (dbUrl.contains(":hsqldb:")) return "org.hsqldb.jdbcDriver";
-
-		return "org.hsqldb.jdbc.JDBCDriver"; // default
-	}
-	*/
-
-    private static void loadDriver() throws Exception {
-    	if (dbDriverName != null) {
-			URLClassLoader loader = (URLClassLoader)ClassLoader.getSystemClassLoader();
-			Method method = URLClassLoader.class.getDeclaredMethod("addURL", URL.class);
-			method.setAccessible(true);
-			method.invoke(loader, Paths.get("jdbcDriver", dbDriverName).toUri().toURL());
+	private static void loadDriver() throws Exception {
+		File jarDir = new File(Main.class.getProtectionDomain().getCodeSource().getLocation().toURI()).getParentFile();
+		if (jarDir.toString().endsWith("target")) {	//To handle maven builds into target directory
+			jarDir = jarDir.getParentFile();
 		}
-		Class.forName("com.mysql.jdbc.Driver");
+		File jdbcDir = new File(jarDir, "jdbcDriver");
+		URLClassLoader loader = (URLClassLoader) ClassLoader.getSystemClassLoader();
+		Method method = URLClassLoader.class.getDeclaredMethod("addURL", URL.class);
+		method.setAccessible(true);
+		try (Stream<Path> filePathStream= Files.walk(jdbcDir.toPath())) {
+			filePathStream.forEach(filePath -> {
+				if (Files.isRegularFile(filePath) && filePath.toString().endsWith(".jar")) {	//Try to load only .jar files
+					try {method.invoke(loader, filePath.toFile().toURI().toURL());} catch (Exception e){};
+				}
+			});
+		}
 		System.err.println("Drivers:");
 		Enumeration<Driver> drivers = DriverManager.getDrivers();
-		while(drivers.hasMoreElements()) {
+		while (drivers.hasMoreElements()) {
 			Driver d = drivers.nextElement();
 			System.err.println("- " + d);
 		}
