@@ -134,7 +134,9 @@ public class Toolkit {
                 "Write DOI log:     [" + (doiLog ? "Yes" : "No") + "]\n";
         System.err.println(configuration);
 
-        loadDriver();
+        if (!dbUrl.contains(":hsqldb:")) {  //If we are not using the embedded database
+            loadDriver();
+        }
         sql2o = new Sql2o(dbUrl, dbUsername, dbPassword);
     }
 
@@ -226,17 +228,19 @@ public class Toolkit {
                 Document response = $(xmlResponse).document();
 
                 // Extract relevant information, if available
-                String doi = $(response).child("doi").text();
-                String sampleId = $(response).child("sampleid").text();
-                String genus = $(response).child("genus").text();
-                String error = $(response).child("error").text();
+                String doi      = $(response).child("doi").text();
+                String sampleId = (pgrfa.get("sample_id") == null)? "N/A" : pgrfa.get("sample_id").toString();
+                String genus    = (pgrfa.get("genus") == null)? "N/A" : pgrfa.get("genus").toString();
+                String error    = $(response).child("error").text();
 
                 // Set the result of the transaction
                 String result = ((error != null) && (!error.isEmpty())) ? "KO" : "OK";
 
                 // If there was a connection error, abort
                 if (httpResponse.getStatus() == HttpStatus.SC_INTERNAL_SERVER_ERROR) {
-                    System.out.println(sampleId + " - " + genus + " - " + error);
+                    String name     = $(response).child("name").text();
+                    String message  = $(response).child("message").text();
+                    System.out.println("Error in GLIS transaction: SampleID " + sampleId + " - " + genus + " - " + name + " - " + message);
                     Unirest.shutdown();
                     if (fDOI != null) fDOI.close();
                     System.exit(1);
