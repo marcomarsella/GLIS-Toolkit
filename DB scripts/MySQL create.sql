@@ -99,7 +99,7 @@ CREATE TABLE `pgrfas` (
   `coll_uncert` varchar(128) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `coll_datum` varchar(16) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `coll_georef` varchar(16) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `coll_elevation` int(11) DEFAULT NULL,
+  `coll_elevation` int DEFAULT NULL,
   `coll_date` varchar(10) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `ancestry` text COLLATE utf8mb4_unicode_ci,
   `coll_source` char(2) COLLATE utf8mb4_unicode_ci DEFAULT NULL,

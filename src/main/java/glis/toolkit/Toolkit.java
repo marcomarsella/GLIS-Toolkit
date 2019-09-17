@@ -21,16 +21,14 @@ import org.w3c.dom.Document;
 
 import javax.net.ssl.SSLContext;
 import javax.xml.parsers.ParserConfigurationException;
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.Writer;
+import java.io.*;
 import java.lang.reflect.Method;
 import java.math.BigInteger;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.security.cert.X509Certificate;
 import java.sql.Driver;
 import java.sql.DriverManager;
@@ -46,6 +44,16 @@ public class Toolkit {
 
     static final String CONFIG_PATH = "config.txt";
     static final String TIMESTAMP = new SimpleDateFormat("yyyyMMdd-HHmmss").format(new Date());
+
+    //DB tables structure
+    static final String[] pgrfasV2Cols = {
+            "OPERATION","SAMPLE_ID","PROCESSED","SAMPLE_DOI","DATE","HOLD_WIEWS","HOLD_PID","HOLD_NAME","HOLD_ADDRESS","HOLD_COUNTRY","METHOD","GENUS","SPECIES",
+            "SP_AUTH","SUBTAXA","ST_AUTH","BIO_STATUS","MLS_STATUS","HISTORICAL","PROGDOIS","PROV_SID","PROVENANCE","COLL_SID","COLL_MISS_ID","COLL_SITE","COLL_LAT",
+            "COLL_LON","COLL_UNCERT","COLL_DATUM","COLL_GEOREF","COLL_ELEVATION","COLL_DATE","COLL_SOURCE","ANCESTRY"
+    };
+    static final String[] actorsV2Cols = {"SAMPLE_ID","ROLE","WIEWS","PID","NAME","ADDRESS","COUNTRY"};
+    static final String[] identifiersV2Cols = {"SAMPLE_ID","TYPE","VALUE"};
+    static final String[] namesV2Cols = {"SAMPLE_ID","NAME_TYPE","NAME"};
 
     /*
      * Main method, sets up the environment and invokes registration and update functions
@@ -72,13 +80,23 @@ public class Toolkit {
             } else {
                 doiLog = temp.toLowerCase().equals("y");
             }
-            // If DOI log is requested, create writer and write header. Otherwise fDOI stays NULL
-            if (doiLog) {
-                String fDOIName = TIMESTAMP + "_" + "DOI.txt";
-                fDOI = new FileWriter(fDOIName);
-                fDOI.write("WIEWS\tPID\tGenus\tSampleID\tDOI\n");    // Write header to DOI log
+
+            if (args.length == 0 ) {    //No arguments, process DOI registration or update
+                // If DOI log is requested, create writer and write header. Otherwise fDOI stays NULL
+                if (doiLog) {
+                    String fDOIName = TIMESTAMP + "_" + "DOI.txt";
+                    fDOI = new FileWriter(fDOIName);
+                    fDOI.write("WIEWS\tPID\tGenus\tSampleID\tDOI\n");    // Write header to DOI log
+                }
+                new Toolkit(config, doiLog).process(fDOI);
+            } else {
+                String command = args[0];
+                switch (command) {
+                    case "load":
+                        new Toolkit(config, doiLog).load(args[1]);
+                        break;
+                }
             }
-            new Toolkit(config, doiLog).process(fDOI);
 
             // Remove lock file
             fLock.delete();
@@ -101,6 +119,8 @@ public class Toolkit {
     String glisUsername;
     String glisPassword;
     String dbUrl;
+    String dbSchema;
+    String dbSchemaConf;
     String dbUsername;
     String dbPassword;
     String dbVersion;
@@ -113,9 +133,17 @@ public class Toolkit {
         glisUsername = config.getString("glis.username");
         glisPassword = config.getString("glis.password");
 
-        dbUrl = config.getString("db.url");
+        dbUrl     = config.getString("db.url");
         dbUsername = config.getString("db.username");
         dbPassword = config.getString("db.password");
+
+        // Get DB schema name and set to string if not defined
+        dbSchemaConf = config.getString("db.schema");
+        if (dbSchemaConf == null) {
+            dbSchema = "";
+        } else if (!dbSchemaConf.isEmpty()) {
+            dbSchema = dbSchemaConf + ".";
+        }
 
         //Get DB version and sets to 1 if not specified
         dbVersion = config.getString("db.version");
@@ -124,6 +152,7 @@ public class Toolkit {
         //Print configuration to both the console and to errors.txt
         String configuration = "Configuration\n" +
                 "Database URL:      [" + dbUrl + "]\n" +
+                "Database schema:   [" + dbSchemaConf + "]\n" +
                 "Database username: [" + dbUsername + "]\n" +
                 "Database password: [" + dbPassword + "]\n" +
                 "Database version:  [" + dbVersion + "]\n" +
@@ -133,6 +162,8 @@ public class Toolkit {
                 "GLIS password:     [" + glisPassword + "]\n" +
                 "Write DOI log:     [" + (doiLog ? "Yes" : "No") + "]\n";
         System.err.println(configuration);
+
+        System.err.println("Toolkit version: 2.0.4");
 
         if (!dbUrl.contains(":hsqldb:")) {  //If we are not using the embedded database
             loadDriver();
@@ -153,7 +184,7 @@ public class Toolkit {
 
         // Build list of pgrfa ids to register. Order by id to ensure a logical sequence
         List<String> ids = select(conn ->
-                conn.createQuery("select id from pgrfas where operation=:operation and processed=:processed order by id")
+                conn.createQuery("select id from " + dbSchema + "pgrfas where operation=:operation and processed=:processed order by id")
                         .addParameter("operation", operation)
                         .addParameter("processed", "n"))
                 .stream()
@@ -277,12 +308,12 @@ public class Toolkit {
     Document buildDocumentV1(String id, Map<String, Object> pgrfa, Map<String, Object> conf) throws ParserConfigurationException {
 
         // Get related rowsets
-        List<Map<String, Object>> actors = select(conn -> conn.createQuery("select * from actors      where pgrfa_id=:pgrfa_id").addParameter("pgrfa_id", id));
-        List<Map<String, Object>> identifiers = select(conn -> conn.createQuery("select * from identifiers where pgrfa_id=:pgrfa_id").addParameter("pgrfa_id", id));
-        List<Map<String, Object>> names = select(conn -> conn.createQuery("select * from names       where pgrfa_id=:pgrfa_id").addParameter("pgrfa_id", id));
-        List<Map<String, Object>> progdois = select(conn -> conn.createQuery("select * from progdois    where pgrfa_id=:pgrfa_id").addParameter("pgrfa_id", id));
-        List<Map<String, Object>> targets = select(conn -> conn.createQuery("select * from targets     where pgrfa_id=:pgrfa_id").addParameter("pgrfa_id", id));
-        List<Map<String, Object>> tkws = select(conn -> conn.createQuery("select k.* from tkws k, targets t where t.pgrfa_id=:pgrfa_id and t.id=k.target_id").addParameter("pgrfa_id", id));
+        List<Map<String, Object>> actors = select(conn -> conn.createQuery("select * from " + dbSchema + "actors where pgrfa_id=:pgrfa_id").addParameter("pgrfa_id", id));
+        List<Map<String, Object>> identifiers = select(conn -> conn.createQuery("select * from " + dbSchema + "identifiers where pgrfa_id=:pgrfa_id").addParameter("pgrfa_id", id));
+        List<Map<String, Object>> names = select(conn -> conn.createQuery("select * from " + dbSchema + "names where pgrfa_id=:pgrfa_id").addParameter("pgrfa_id", id));
+        List<Map<String, Object>> progdois = select(conn -> conn.createQuery("select * from " + dbSchema + "progdois where pgrfa_id=:pgrfa_id").addParameter("pgrfa_id", id));
+        List<Map<String, Object>> targets = select(conn -> conn.createQuery("select * from " + dbSchema + "targets      where pgrfa_id=:pgrfa_id").addParameter("pgrfa_id", id));
+        List<Map<String, Object>> tkws = select(conn -> conn.createQuery("select k.* from " + dbSchema + "tkws k, " + dbSchema + "targets t where t.pgrfa_id=:pgrfa_id and t.id=k.target_id").addParameter("pgrfa_id", id));
 
         return buildDocument(pgrfa, conf, actors, identifiers, names, progdois, targets, tkws);
     }
@@ -294,10 +325,10 @@ public class Toolkit {
     Document buildDocumentV2(String sid, Map<String, Object> pgrfa, Map<String, Object> conf) throws ParserConfigurationException {
 
         // Get related rowsets
-        List<Map<String, Object>> actors = select(conn -> conn.createQuery("select * from actors      where sample_id=:sid").addParameter("sid", sid));
-        List<Map<String, Object>> identifiers = select(conn -> conn.createQuery("select * from identifiers where sample_id=:sid").addParameter("sid", sid));
-        List<Map<String, Object>> names = select(conn -> conn.createQuery("select * from names       where sample_id=:pgrfa_id").addParameter("pgrfa_id", sid));
-        List<Map<String, Object>> targets = select(conn -> conn.createQuery("select * from targets     where sample_id=:sid").addParameter("sid", sid));
+        List<Map<String, Object>> actors = select(conn -> conn.createQuery("select * from " + dbSchema + "actors       where sample_id=:sid").addParameter("sid", sid));
+        List<Map<String, Object>> identifiers = select(conn -> conn.createQuery("select * from " + dbSchema + "identifiers where sample_id=:sid").addParameter("sid", sid));
+        List<Map<String, Object>> names = select(conn -> conn.createQuery("select * from " + dbSchema + "names where sample_id=:pgrfa_id").addParameter("pgrfa_id", sid));
+        List<Map<String, Object>> targets = select(conn -> conn.createQuery("select * from " + dbSchema + "targets where sample_id=:sid").addParameter("sid", sid));
 
         //System.out.println("DEBUG: QUERIES DONE");
 
@@ -339,7 +370,7 @@ public class Toolkit {
      * Wrapper for the update operation to the pgrfas table
      */
     void markAsProcessed(String id) {
-        final String query = "update pgrfas set processed = 'y' where id=:id";
+        final String query = "update " + dbSchema + "pgrfas set processed = 'y' where id=:id";
         try (Connection conn = sql2o.open()) {
             conn.createQuery(query)
                     .addParameter("id", new BigInteger(id))
@@ -351,7 +382,7 @@ public class Toolkit {
      * Wrapper for the insert operation into the results table
      */
     void insertResult(String operation, String result, String doi, String sampleId, String genus, String error) {
-        final String query = "insert into results (operation, genus, sample_id, doi, result, error) values(:ope, :gen, :sid, :doi, :res, :err)";
+        final String query = "insert into " + dbSchema + "results (operation, genus, sample_id, doi, result, error) values(:ope, :gen, :sid, :doi, :res, :err)";
         try (Connection conn = sql2o.open()) {
             conn.createQuery(query)
                     .addParameter("ope", operation)
@@ -457,6 +488,70 @@ public class Toolkit {
         while (drivers.hasMoreElements()) {
             Driver d = drivers.nextElement();
             System.err.println("- " + d);
+        }
+    }
+
+
+    void load(String fileName) throws Exception {
+        final String query = "insert into " + dbSchema +
+                "pgrfas (OPERATION,SAMPLE_ID,PROCESSED,SAMPLE_DOI,DATE,HOLD_WIEWS,HOLD_PID,HOLD_NAME,HOLD_ADDRESS,HOLD_COUNTRY,METHOD,GENUS,SPECIES,SP_AUTH,SUBTAXA,ST_AUTH,BIO_STATUS,MLS_STATUS,HISTORICAL,PROGDOIS,PROV_SID,PROVENANCE,COLL_SID,COLL_MISS_ID,COLL_SITE,COLL_LAT,COLL_LON,COLL_UNCERT,COLL_DATUM,COLL_GEOREF,COLL_ELEVATION,COLL_DATE,COLL_SOURCE,ANCESTRY) " +
+                "values(:oper,:sid,:proc,:sdoi,:date,:hwiews,:hpid,:hname,:hadd,:hcty,:meth,:gen,:spec,:spau,:stax,:stau,:bio,:mls,:hist,:pdoi,:psid,:prov,:csid,:cmid,:csit,:clat,:clon,:cunc,:cdum,:cgrf,:cele,:cdat,:csrc,:ance)";
+        try (Connection conn = sql2o.open()) {
+            try(BufferedReader br = new BufferedReader(new FileReader(fileName))) {
+                String dummy ="";
+                boolean header = true;
+                int cnt = 0;
+                for (String line; (line = br.readLine()) != null; ) {
+                    if (header) {
+                        String[] head = line.split("\t");
+                        if (!Arrays.equals(head, pgrfasV2Cols)) throw new Exception("Header is not correct!");
+                        header = false;
+                        continue;
+                    }
+                    String[] arr = line.split("\t", -1);
+                    Arrays.parallelSetAll(arr, (i) -> arr[i].trim());   //Trim all items
+                    if (arr[0].trim().length() > 0) {   //Only when operation is defined
+                        cnt++;
+                        // DEBUG System.err.println("Processing line " + cnt + " array size: " + arr.length);
+                        conn.createQuery(query)
+                                .addParameter("oper", arr[0])
+                                .addParameter("sid", arr[1])
+                                .addParameter("proc", arr[2])
+                                .addParameter("sdoi", arr[3])
+                                .addParameter("date", arr[4])
+                                .addParameter("hwiews", arr[5])
+                                .addParameter("hpid", arr[6])
+                                .addParameter("hname", arr[7])
+                                .addParameter("hadd", arr[8])
+                                .addParameter("hcty", arr[9])
+                                .addParameter("meth", arr[10])
+                                .addParameter("gen", arr[11])
+                                .addParameter("spec", arr[12])
+                                .addParameter("spau", arr[13])
+                                .addParameter("stax", arr[14])
+                                .addParameter("stau", arr[15])
+                                .addParameter("bio", arr[16])
+                                .addParameter("mls", arr[17])
+                                .addParameter("hist", arr[18])
+                                .addParameter("pdoi", arr[19])
+                                .addParameter("psid", arr[20])
+                                .addParameter("prov", arr[21])
+                                .addParameter("csid", arr[22])
+                                .addParameter("cmid", arr[23])
+                                .addParameter("csit", arr[24])
+                                .addParameter("clat", arr[25])
+                                .addParameter("clon", arr[26])
+                                .addParameter("cunc", arr[27])
+                                .addParameter("cdum", arr[28])
+                                .addParameter("cgrf", arr[29])
+                                .addParameter("cele", arr[30].length() == 0 ? null : arr[30])
+                                .addParameter("cdat", arr[31])
+                                .addParameter("csrc", arr[32])
+                                .addParameter("ance", arr[33])
+                                .executeUpdate();
+                    }
+                }
+            }
         }
     }
 }
