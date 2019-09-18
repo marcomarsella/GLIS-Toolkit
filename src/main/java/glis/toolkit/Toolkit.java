@@ -46,14 +46,16 @@ public class Toolkit {
     static final String TIMESTAMP = new SimpleDateFormat("yyyyMMdd-HHmmss").format(new Date());
 
     //DB tables structure
+    static final List<String> tableListV2 = Arrays.asList("actors","identifiers","names","targets","pgrfas");   //Order used to truncate tables
+    static final String[] actorsV2Cols = {"SAMPLE_ID","ROLE","WIEWS","PID","NAME","ADDRESS","COUNTRY"};
+    static final String[] identifiersV2Cols = {"SAMPLE_ID","TYPE","VALUE"};
+    static final String[] namesV2Cols = {"SAMPLE_ID","NAME_TYPE","NAME"};
     static final String[] pgrfasV2Cols = {
             "OPERATION","SAMPLE_ID","PROCESSED","SAMPLE_DOI","DATE","HOLD_WIEWS","HOLD_PID","HOLD_NAME","HOLD_ADDRESS","HOLD_COUNTRY","METHOD","GENUS","SPECIES",
             "SP_AUTH","SUBTAXA","ST_AUTH","BIO_STATUS","MLS_STATUS","HISTORICAL","PROGDOIS","PROV_SID","PROVENANCE","COLL_SID","COLL_MISS_ID","COLL_SITE","COLL_LAT",
             "COLL_LON","COLL_UNCERT","COLL_DATUM","COLL_GEOREF","COLL_ELEVATION","COLL_DATE","COLL_SOURCE","ANCESTRY"
     };
-    static final String[] actorsV2Cols = {"SAMPLE_ID","ROLE","WIEWS","PID","NAME","ADDRESS","COUNTRY"};
-    static final String[] identifiersV2Cols = {"SAMPLE_ID","TYPE","VALUE"};
-    static final String[] namesV2Cols = {"SAMPLE_ID","NAME_TYPE","NAME"};
+    static final String[] targetsV2Cols = {"SAMPLE_ID","VALUE","TKWS"};
 
     /*
      * Main method, sets up the environment and invokes registration and update functions
@@ -81,7 +83,8 @@ public class Toolkit {
                 doiLog = temp.toLowerCase().equals("y");
             }
 
-            if (args.length == 0 ) {    //No arguments, process DOI registration or update
+            int argsLen = args.length;
+            if (argsLen == 0 ) {    //No arguments, process DOI registration or update
                 // If DOI log is requested, create writer and write header. Otherwise fDOI stays NULL
                 if (doiLog) {
                     String fDOIName = TIMESTAMP + "_" + "DOI.txt";
@@ -93,8 +96,10 @@ public class Toolkit {
                 String command = args[0];
                 switch (command) {
                     case "load":
-                        new Toolkit(config, doiLog).load(args[1]);
+                        new Toolkit(config, doiLog).load(args);
                         break;
+                    case "zapdb":
+                        new Toolkit(config, doiLog).zap(args);
                 }
             }
 
@@ -492,7 +497,30 @@ public class Toolkit {
     }
 
 
-    void load(String fileName) throws Exception {
+    private void zap(String[] args) throws Exception {
+        try (Connection conn = sql2o.open()) {
+            for (String table : tableListV2) {
+                conn.createQuery("TRUNCATE TABLE " + table).executeUpdate();
+            }
+            conn.createQuery("TRUNCATE TABLE RESULTS").executeUpdate();
+        }
+        System.out.println("Database emptied");
+    }
+
+
+    private void load(String[] args) throws Exception {
+        if (args.length != 3) {
+            System.err.println("Usage: java -jar toolkit.jar load <table name> <file name>");
+            System.exit(1);
+        }
+        String table    = args[1];
+        String fileName = args[2];
+
+        if (!tableListV2.contains(table)) {
+            System.err.println("Version 2 database does not include table " + table);
+            System.exit(1);
+        }
+
         final String query = "insert into " + dbSchema +
                 "pgrfas (OPERATION,SAMPLE_ID,PROCESSED,SAMPLE_DOI,DATE,HOLD_WIEWS,HOLD_PID,HOLD_NAME,HOLD_ADDRESS,HOLD_COUNTRY,METHOD,GENUS,SPECIES,SP_AUTH,SUBTAXA,ST_AUTH,BIO_STATUS,MLS_STATUS,HISTORICAL,PROGDOIS,PROV_SID,PROVENANCE,COLL_SID,COLL_MISS_ID,COLL_SITE,COLL_LAT,COLL_LON,COLL_UNCERT,COLL_DATUM,COLL_GEOREF,COLL_ELEVATION,COLL_DATE,COLL_SOURCE,ANCESTRY) " +
                 "values(:oper,:sid,:proc,:sdoi,:date,:hwiews,:hpid,:hname,:hadd,:hcty,:meth,:gen,:spec,:spau,:stax,:stau,:bio,:mls,:hist,:pdoi,:psid,:prov,:csid,:cmid,:csit,:clat,:clon,:cunc,:cdum,:cgrf,:cele,:cdat,:csrc,:ance)";
