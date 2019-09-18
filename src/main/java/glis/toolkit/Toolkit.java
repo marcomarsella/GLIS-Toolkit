@@ -28,7 +28,6 @@ import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.security.cert.X509Certificate;
 import java.sql.Driver;
 import java.sql.DriverManager;
@@ -45,17 +44,8 @@ public class Toolkit {
     static final String CONFIG_PATH = "config.txt";
     static final String TIMESTAMP = new SimpleDateFormat("yyyyMMdd-HHmmss").format(new Date());
 
-    //DB tables structure
+    static final List<String> tableListV1 = Arrays.asList("actors","identifiers","names","progdois","tkws","targets","pgrfas");   //Order used to truncate tables
     static final List<String> tableListV2 = Arrays.asList("actors","identifiers","names","targets","pgrfas");   //Order used to truncate tables
-    static final String[] actorsV2Cols = {"SAMPLE_ID","ROLE","WIEWS","PID","NAME","ADDRESS","COUNTRY"};
-    static final String[] identifiersV2Cols = {"SAMPLE_ID","TYPE","VALUE"};
-    static final String[] namesV2Cols = {"SAMPLE_ID","NAME_TYPE","NAME"};
-    static final String[] pgrfasV2Cols = {
-            "OPERATION","SAMPLE_ID","PROCESSED","SAMPLE_DOI","DATE","HOLD_WIEWS","HOLD_PID","HOLD_NAME","HOLD_ADDRESS","HOLD_COUNTRY","METHOD","GENUS","SPECIES",
-            "SP_AUTH","SUBTAXA","ST_AUTH","BIO_STATUS","MLS_STATUS","HISTORICAL","PROGDOIS","PROV_SID","PROVENANCE","COLL_SID","COLL_MISS_ID","COLL_SITE","COLL_LAT",
-            "COLL_LON","COLL_UNCERT","COLL_DATUM","COLL_GEOREF","COLL_ELEVATION","COLL_DATE","COLL_SOURCE","ANCESTRY"
-    };
-    static final String[] targetsV2Cols = {"SAMPLE_ID","VALUE","TKWS"};
 
     /*
      * Main method, sets up the environment and invokes registration and update functions
@@ -70,7 +60,7 @@ public class Toolkit {
             if (!fLock.exists()) {
                 fLock.createNewFile();
             } else {
-                System.err.println("Lock file 'lock.lck' exists. Either another instance of the Toolkit is running or it has terminated in an error. Please make sure no other instance of the Toolkit is running, or fix the error, before removing the lock file and trying again");
+                System.err.println("ERROR: Lock file 'lock.lck' exists. Either another instance of the Toolkit is running or it has terminated in an error. Please make sure no other instance of the Toolkit is running, or fix the error, before removing the lock file and trying again");
                 System.exit(1);
             }
             // read configuration
@@ -84,22 +74,28 @@ public class Toolkit {
             }
 
             int argsLen = args.length;
-            if (argsLen == 0 ) {    //No arguments, process DOI registration or update
-                // If DOI log is requested, create writer and write header. Otherwise fDOI stays NULL
-                if (doiLog) {
-                    String fDOIName = TIMESTAMP + "_" + "DOI.txt";
-                    fDOI = new FileWriter(fDOIName);
-                    fDOI.write("WIEWS\tPID\tGenus\tSampleID\tDOI\n");    // Write header to DOI log
-                }
-                new Toolkit(config, doiLog).process(fDOI);
+            if (argsLen == 0 ) {    //No arguments, print help
+                help();
             } else {
                 String command = args[0];
                 switch (command) {
+                    case "process":
+                        if (doiLog) {   // If DOI log is requested, create writer and write header. Otherwise fDOI stays NULL
+                            String fDOIName = TIMESTAMP + "_" + "DOI.txt";
+                            fDOI = new FileWriter(fDOIName);
+                            fDOI.write("WIEWS\tPID\tGenus\tSampleID\tDOI\n");    // Write header to DOI log
+                        }
+                        new Toolkit(config, doiLog).process(fDOI);
+                        break;
                     case "load":
                         new Toolkit(config, doiLog).load(args);
                         break;
                     case "zapdb":
                         new Toolkit(config, doiLog).zap(args);
+                        break;
+                    default:
+                        System.err.println("ERROR: Unknown command: " + command + ". Type 'java -jar toolkit.jar' for help.");
+                        break;
                 }
             }
 
@@ -119,6 +115,20 @@ public class Toolkit {
             }
         }
     }
+
+
+    private static void help() {
+        final String[] help = {
+            "\nThis is the GLIS Integration Toolkit 3.0\n",
+            "The following commands are accepted:",
+            "java -jar toolkit.jar process\n     Processes registrations and updates\n",
+            "java -jar toolkit.jar zapdb\n     Empties the Toolkit DB\n",
+            "java -jar toolkit.jar load <table> <file>\n     Loads table <table> from the TAB-separated file <file>\n",
+            "java -jar toolkit.jar\n     Prints this help\n"
+        };
+        Arrays.stream(help).forEach(System.out::println);
+    }
+
 
     String glisUrl;
     String glisUsername;
@@ -168,7 +178,7 @@ public class Toolkit {
                 "Write DOI log:     [" + (doiLog ? "Yes" : "No") + "]\n";
         System.err.println(configuration);
 
-        System.err.println("Toolkit version: 2.0.4");
+        System.err.println("Toolkit version: 3.0.0");
 
         if (!dbUrl.contains(":hsqldb:")) {  //If we are not using the embedded database
             loadDriver();
@@ -499,10 +509,23 @@ public class Toolkit {
 
     private void zap(String[] args) throws Exception {
         try (Connection conn = sql2o.open()) {
-            for (String table : tableListV2) {
-                conn.createQuery("TRUNCATE TABLE " + table).executeUpdate();
+            switch (dbVersion) {
+                case "1":
+                    for (String table : tableListV1) {
+                        conn.createQuery("DELETE FROM " + dbSchema + table.toLowerCase()).executeUpdate();
+                    }
+                    conn.createQuery("DELETE FROM " + dbSchema + "results").executeUpdate();
+                    break;
+                case "2":
+                    for (String table : tableListV2) {
+                        conn.createQuery("TRUNCATE TABLE " + dbSchema + table.toLowerCase()).executeUpdate();
+                    }
+                    conn.createQuery("TRUNCATE TABLE " + dbSchema + "results").executeUpdate();
+                    break;
+                default:
+                    System.err.println("ERROR: Unknown database version: " + dbVersion);
+                    break;
             }
-            conn.createQuery("TRUNCATE TABLE RESULTS").executeUpdate();
         }
         System.out.println("Database emptied");
     }
@@ -513,26 +536,89 @@ public class Toolkit {
             System.err.println("Usage: java -jar toolkit.jar load <table name> <file name>");
             System.exit(1);
         }
-        String table    = args[1];
+        String table = args[1].toLowerCase();
         String fileName = args[2];
 
-        if (!tableListV2.contains(table)) {
-            System.err.println("Version 2 database does not include table " + table);
-            System.exit(1);
+        if ((dbVersion.equals("1") && !tableListV1.contains(table)) || (dbVersion.equals("2") && !tableListV2.contains(table))) {
+            System.err.println("ERROR: Version " + dbVersion + " database does not include table " + table);
+            return;
         }
 
-        final String query = "insert into " + dbSchema +
-                "pgrfas (OPERATION,SAMPLE_ID,PROCESSED,SAMPLE_DOI,DATE,HOLD_WIEWS,HOLD_PID,HOLD_NAME,HOLD_ADDRESS,HOLD_COUNTRY,METHOD,GENUS,SPECIES,SP_AUTH,SUBTAXA,ST_AUTH,BIO_STATUS,MLS_STATUS,HISTORICAL,PROGDOIS,PROV_SID,PROVENANCE,COLL_SID,COLL_MISS_ID,COLL_SITE,COLL_LAT,COLL_LON,COLL_UNCERT,COLL_DATUM,COLL_GEOREF,COLL_ELEVATION,COLL_DATE,COLL_SOURCE,ANCESTRY) " +
-                "values(:oper,:sid,:proc,:sdoi,:date,:hwiews,:hpid,:hname,:hadd,:hcty,:meth,:gen,:spec,:spau,:stax,:stau,:bio,:mls,:hist,:pdoi,:psid,:prov,:csid,:cmid,:csit,:clat,:clon,:cunc,:cdum,:cgrf,:cele,:cdat,:csrc,:ance)";
+        switch (dbVersion) {
+            case "1":
+                loadV1(table, fileName);
+                break;
+            case "2":
+                loadV2(table, fileName);
+                break;
+            default:
+                System.err.println("ERROR: Unknown database version: " + dbVersion);
+                break;
+        }
+    }
+
+    private void loadV1(String table, String fileName) throws Exception {
+        //DB version 1 tables structure
+        //DB version 1 tables structure
+        final String[] actorsV1Cols = {"ID", "PGRFA_ID", "ROLE", "WIEWS", "PID", "NAME", "ADDRESS", "COUNTRY"};
+        final String[] identifiersV1Cols = {"ID", "PGRFA_ID", "TYPE", "VALUE"};
+        final String[] namesV1Cols = {"ID", "PGRFA_ID", "NAME_TYPE", "NAME"};
+        final String[] pgrfasV1Cols = {
+                "ID", "OPERATION", "SAMPLE_ID", "PROCESSED", "SAMPLE_DOI", "DATE", "HOLD_WIEWS", "HOLD_PID", "HOLD_NAME", "HOLD_ADDRESS", "HOLD_COUNTRY", "METHOD", "GENUS", "SPECIES",
+                "SP_AUTH", "SUBTAXA", "ST_AUTH", "BIO_STATUS", "MLS_STATUS", "HISTORICAL", "PROV_SID", "PROVENANCE", "COLL_SID", "COLL_MISS_ID", "COLL_SITE", "COLL_LAT",
+                "COLL_LON", "COLL_UNCERT", "COLL_DATUM", "COLL_GEOREF", "COLL_ELEVATION", "COLL_DATE", "COLL_SOURCE", "ANCESTRY"
+        };
+        final String[] progdoisV1Cols = {"ID", "PGRFA_ID", "DOI"};
+        final String[] targetsV1Cols = {"ID", "PGRFA_ID", "VALUE"};
+        final String[] tkwsV1Cols = {"ID", "TARGET_ID", "VALUE"};
+
+// DB queries
+        final String queryActorsV1 = "insert into " + dbSchema + "actors (ID,PGRFA_ID,ROLE,WIEWS,PID,NAME,ADDRESS,COUNTRY) values(:id,:pgid,:role,:wiews,:pid,:name,:addr,:ctry)";
+        final String queryIdentifiersV1 = "insert into " + dbSchema + "identifiers (ID,PGRFA_ID,TYPE,VALUE) values(:id,:pgid,:type,:val)";
+        final String queryNamesV1 = "insert into " + dbSchema + "names (ID,PGRFA_ID,NAME_TYPE,NAME) values(:id,:pgid,:type,:name)";
+        final String queryPgrfasV1 = "insert into " + dbSchema +
+                "pgrfas (ID,OPERATION,SAMPLE_ID,PROCESSED,SAMPLE_DOI,DATE,HOLD_WIEWS,HOLD_PID,HOLD_NAME,HOLD_ADDRESS,HOLD_COUNTRY,METHOD,GENUS,SPECIES,SP_AUTH,SUBTAXA,ST_AUTH,BIO_STATUS,MLS_STATUS,HISTORICAL,PROV_SID,PROVENANCE,COLL_SID,COLL_MISS_ID,COLL_SITE,COLL_LAT,COLL_LON,COLL_UNCERT,COLL_DATUM,COLL_GEOREF,COLL_ELEVATION,COLL_DATE,COLL_SOURCE,ANCESTRY) " +
+                "values(:id,:oper,:pgid,:proc,:sdoi,:date,:hwiews,:hpid,:hname,:hadd,:hcty,:meth,:gen,:spec,:spau,:stax,:stau,:bio,:mls,:hist,:psid,:prov,:csid,:cmid,:csit,:clat,:clon,:cunc,:cdum,:cgrf,:cele,:cdat,:csrc,:ance)";
+        final String queryProgdoisV1 = "insert into " + dbSchema + "progdois (ID,PGRFA_ID,DOI) values(:id,:pgid,:doi)";
+        final String queryTargetsV1 = "insert into " + dbSchema + "targets (ID,PGRFA_ID,VALUE) values(:id,:pgid,:val)";
+        final String queryTkwsV1 = "insert into " + dbSchema + "tkws (ID,TARGET_ID,VALUE) values(:id,:tgid,:val)";
+
         try (Connection conn = sql2o.open()) {
-            try(BufferedReader br = new BufferedReader(new FileReader(fileName))) {
-                String dummy ="";
+            try (BufferedReader br = new BufferedReader(new FileReader(fileName))) {
+                String dummy = "";
                 boolean header = true;
                 int cnt = 0;
                 for (String line; (line = br.readLine()) != null; ) {
                     if (header) {
                         String[] head = line.split("\t");
-                        if (!Arrays.equals(head, pgrfasV2Cols)) throw new Exception("Header is not correct!");
+                        boolean ok = false;
+                        switch (table) {
+                            case "actors":
+                                ok = Arrays.equals(head, actorsV1Cols);
+                                break;
+                            case "identifiers":
+                                ok = Arrays.equals(head, identifiersV1Cols);
+                                break;
+                            case "names":
+                                ok = Arrays.equals(head, namesV1Cols);
+                                break;
+                            case "pgrfas":
+                                ok = Arrays.equals(head, pgrfasV1Cols);
+                                break;
+                            case "progdois":
+                                ok = Arrays.equals(head, progdoisV1Cols);
+                                break;
+                            case "targets":
+                                ok = Arrays.equals(head, targetsV1Cols);
+                                break;
+                            case "tkws":
+                                ok = Arrays.equals(head, tkwsV1Cols);
+                                break;
+                        }
+                        if (!ok) {
+                            System.err.println("ERROR: Header is not correct for table " + table);
+                            return;
+                        }
                         header = false;
                         continue;
                     }
@@ -541,42 +627,232 @@ public class Toolkit {
                     if (arr[0].trim().length() > 0) {   //Only when operation is defined
                         cnt++;
                         // DEBUG System.err.println("Processing line " + cnt + " array size: " + arr.length);
-                        conn.createQuery(query)
-                                .addParameter("oper", arr[0])
-                                .addParameter("sid", arr[1])
-                                .addParameter("proc", arr[2])
-                                .addParameter("sdoi", arr[3])
-                                .addParameter("date", arr[4])
-                                .addParameter("hwiews", arr[5])
-                                .addParameter("hpid", arr[6])
-                                .addParameter("hname", arr[7])
-                                .addParameter("hadd", arr[8])
-                                .addParameter("hcty", arr[9])
-                                .addParameter("meth", arr[10])
-                                .addParameter("gen", arr[11])
-                                .addParameter("spec", arr[12])
-                                .addParameter("spau", arr[13])
-                                .addParameter("stax", arr[14])
-                                .addParameter("stau", arr[15])
-                                .addParameter("bio", arr[16])
-                                .addParameter("mls", arr[17])
-                                .addParameter("hist", arr[18])
-                                .addParameter("pdoi", arr[19])
-                                .addParameter("psid", arr[20])
-                                .addParameter("prov", arr[21])
-                                .addParameter("csid", arr[22])
-                                .addParameter("cmid", arr[23])
-                                .addParameter("csit", arr[24])
-                                .addParameter("clat", arr[25])
-                                .addParameter("clon", arr[26])
-                                .addParameter("cunc", arr[27])
-                                .addParameter("cdum", arr[28])
-                                .addParameter("cgrf", arr[29])
-                                .addParameter("cele", arr[30].length() == 0 ? null : arr[30])
-                                .addParameter("cdat", arr[31])
-                                .addParameter("csrc", arr[32])
-                                .addParameter("ance", arr[33])
-                                .executeUpdate();
+                        switch (table) {
+                            case "actors":
+                                conn.createQuery(queryActorsV1)
+                                        .addParameter("id", arr[0])
+                                        .addParameter("pgid", arr[1])
+                                        .addParameter("role", arr[2])
+                                        .addParameter("wiews", arr[3])
+                                        .addParameter("pid", arr[4])
+                                        .addParameter("name", arr[5])
+                                        .addParameter("addr", arr[6])
+                                        .addParameter("ctry", arr[7])
+                                        .executeUpdate();
+                                break;
+                            case "identifiers":
+                                conn.createQuery(queryIdentifiersV1)
+                                        .addParameter("id", arr[0])
+                                        .addParameter("pgid", arr[1])
+                                        .addParameter("type", arr[2])
+                                        .addParameter("val", arr[3])
+                                        .executeUpdate();
+                                break;
+                            case "names":
+                                conn.createQuery(queryNamesV1)
+                                        .addParameter("id", arr[0])
+                                        .addParameter("pgid", arr[1])
+                                        .addParameter("type", arr[2])
+                                        .addParameter("name", arr[3])
+                                        .executeUpdate();
+                                break;
+                            case "pgrfas":
+                                conn.createQuery(queryPgrfasV1)
+                                        .addParameter("id", arr[0])
+                                        .addParameter("oper", arr[1])
+                                        .addParameter("sid", arr[2])
+                                        .addParameter("proc", arr[3])
+                                        .addParameter("sdoi", arr[4])
+                                        .addParameter("date", arr[5])
+                                        .addParameter("hwiews", arr[6])
+                                        .addParameter("hpid", arr[7])
+                                        .addParameter("hname", arr[8])
+                                        .addParameter("hadd", arr[9])
+                                        .addParameter("hcty", arr[10])
+                                        .addParameter("meth", arr[11])
+                                        .addParameter("gen", arr[12])
+                                        .addParameter("spec", arr[13])
+                                        .addParameter("spau", arr[14])
+                                        .addParameter("stax", arr[15])
+                                        .addParameter("stau", arr[16])
+                                        .addParameter("bio", arr[17])
+                                        .addParameter("mls", arr[18])
+                                        .addParameter("hist", arr[19])
+                                        .addParameter("psid", arr[20])
+                                        .addParameter("prov", arr[21])
+                                        .addParameter("csid", arr[22])
+                                        .addParameter("cmid", arr[23])
+                                        .addParameter("csit", arr[24])
+                                        .addParameter("clat", arr[25])
+                                        .addParameter("clon", arr[26])
+                                        .addParameter("cunc", arr[27])
+                                        .addParameter("cdum", arr[28])
+                                        .addParameter("cgrf", arr[29])
+                                        .addParameter("cele", arr[30].length() == 0 ? null : arr[30])
+                                        .addParameter("cdat", arr[31])
+                                        .addParameter("csrc", arr[32])
+                                        .addParameter("ance", arr[33])
+                                        .executeUpdate();
+                                break;
+                            case "progdois":
+                                conn.createQuery(queryProgdoisV1)
+                                        .addParameter("id", arr[0])
+                                        .addParameter("pgid", arr[1])
+                                        .addParameter("doi", arr[2])
+                                        .executeUpdate();
+                                break;
+                            case "targets":
+                                conn.createQuery(queryTargetsV1)
+                                        .addParameter("id", arr[0])
+                                        .addParameter("pgid", arr[1])
+                                        .addParameter("val", arr[2])
+                                        .executeUpdate();
+                                break;
+                            case "tkws":
+                                conn.createQuery(queryTkwsV1)
+                                        .addParameter("id", arr[0])
+                                        .addParameter("tgid", arr[1])
+                                        .addParameter("val", arr[2])
+                                        .executeUpdate();
+                                break;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private void loadV2 (String table, String fileName) throws Exception {
+        //DB version 2 tables structure
+        final String[] actorsV2Cols = {"SAMPLE_ID","ROLE","WIEWS","PID","NAME","ADDRESS","COUNTRY"};
+        final String[] identifiersV2Cols = {"SAMPLE_ID","TYPE","VALUE"};
+        final String[] namesV2Cols = {"SAMPLE_ID","NAME_TYPE","NAME"};
+        final String[] pgrfasV2Cols = {
+                "OPERATION","SAMPLE_ID","PROCESSED","SAMPLE_DOI","DATE","HOLD_WIEWS","HOLD_PID","HOLD_NAME","HOLD_ADDRESS","HOLD_COUNTRY","METHOD","GENUS","SPECIES",
+                "SP_AUTH","SUBTAXA","ST_AUTH","BIO_STATUS","MLS_STATUS","HISTORICAL","PROGDOIS","PROV_SID","PROVENANCE","COLL_SID","COLL_MISS_ID","COLL_SITE","COLL_LAT",
+                "COLL_LON","COLL_UNCERT","COLL_DATUM","COLL_GEOREF","COLL_ELEVATION","COLL_DATE","COLL_SOURCE","ANCESTRY"
+        };
+        final String[] targetsV2Cols = {"SAMPLE_ID","VALUE","TKWS"};
+
+// DB queries
+        final String queryActorsV2      = "insert into " + dbSchema + "actors (SAMPLE_ID,ROLE,WIEWS,PID,NAME,ADDRESS,COUNTRY) values(:sid,:role,:wiews,:pid,:name,:addr,:ctry)";
+        final String queryIdentifiersV2 = "insert into " + dbSchema + "identifiers (SAMPLE_ID,TYPE,VALUE) values(:sid,:type,:val)";
+        final String queryNamesV2       = "insert into " + dbSchema + "names (SAMPLE_ID,NAME_TYPE,NAME) values(:sid,:type,:name)";
+        final String queryPgrfasV2      = "insert into " + dbSchema +
+                "pgrfas (OPERATION,SAMPLE_ID,PROCESSED,SAMPLE_DOI,DATE,HOLD_WIEWS,HOLD_PID,HOLD_NAME,HOLD_ADDRESS,HOLD_COUNTRY,METHOD,GENUS,SPECIES,SP_AUTH,SUBTAXA,ST_AUTH,BIO_STATUS,MLS_STATUS,HISTORICAL,PROGDOIS,PROV_SID,PROVENANCE,COLL_SID,COLL_MISS_ID,COLL_SITE,COLL_LAT,COLL_LON,COLL_UNCERT,COLL_DATUM,COLL_GEOREF,COLL_ELEVATION,COLL_DATE,COLL_SOURCE,ANCESTRY) " +
+                "values(:oper,:sid,:proc,:sdoi,:date,:hwiews,:hpid,:hname,:hadd,:hcty,:meth,:gen,:spec,:spau,:stax,:stau,:bio,:mls,:hist,:pdoi,:psid,:prov,:csid,:cmid,:csit,:clat,:clon,:cunc,:cdum,:cgrf,:cele,:cdat,:csrc,:ance)";
+        final String queryTargetsV2      = "insert into " + dbSchema + "targets (SAMPLE_ID,VALUE,TKWS) values(:sid,:val,:tkws)";
+
+        try (Connection conn = sql2o.open()) {
+            try(BufferedReader br = new BufferedReader(new FileReader(fileName))) {
+                String dummy ="";
+                boolean header = true;
+                int cnt = 0;
+                for (String line; (line = br.readLine()) != null; ) {
+                    if (header) {
+                        String[] head = line.split("\t");
+                        boolean ok = false;
+                        switch (table) {
+                            case "actors":
+                                ok = Arrays.equals(head, actorsV2Cols);
+                                break;
+                            case "identifiers":
+                                ok = Arrays.equals(head, identifiersV2Cols);
+                                break;
+                            case "names":
+                                ok = Arrays.equals(head, namesV2Cols);
+                                break;
+                            case "pgrfas":
+                                ok = Arrays.equals(head, pgrfasV2Cols);
+                                break;
+                            case "targets":
+                                ok = Arrays.equals(head, targetsV2Cols);
+                                break;
+                        }
+                        if (!ok) {
+                            System.err.println("ERROR: Header is not correct for table " + table);
+                            return;
+                        }
+                        header = false;
+                        continue;
+                    }
+                    String[] arr = line.split("\t", -1);
+                    Arrays.parallelSetAll(arr, (i) -> arr[i].trim());   //Trim all items
+                    if (arr[0].trim().length() > 0) {   //Only when operation is defined
+                        cnt++;
+                        // DEBUG System.err.println("Processing line " + cnt + " array size: " + arr.length);
+                        switch (table) {
+                            case "actors":
+                                conn.createQuery(queryActorsV2)
+                                        .addParameter("sid", arr[0])
+                                        .addParameter("role", arr[1])
+                                        .addParameter("wiews", arr[2])
+                                        .addParameter("pid", arr[3])
+                                        .addParameter("name", arr[4])
+                                        .addParameter("addr", arr[5])
+                                        .addParameter("ctry", arr[6])
+                                        .executeUpdate();
+                                break;
+                            case "identifiers":
+                                conn.createQuery(queryIdentifiersV2)
+                                        .addParameter("sid", arr[0])
+                                        .addParameter("type", arr[1])
+                                        .addParameter("val", arr[2])
+                                        .executeUpdate();
+                                break;
+                            case "names":
+                                conn.createQuery(queryNamesV2)
+                                        .addParameter("sid", arr[0])
+                                        .addParameter("type", arr[1])
+                                        .addParameter("name", arr[2])
+                                        .executeUpdate();
+                                break;
+                            case "pgrfas":
+                                conn.createQuery(queryPgrfasV2)
+                                        .addParameter("oper", arr[0])
+                                        .addParameter("sid", arr[1])
+                                        .addParameter("proc", arr[2])
+                                        .addParameter("sdoi", arr[3])
+                                        .addParameter("date", arr[4])
+                                        .addParameter("hwiews", arr[5])
+                                        .addParameter("hpid", arr[6])
+                                        .addParameter("hname", arr[7])
+                                        .addParameter("hadd", arr[8])
+                                        .addParameter("hcty", arr[9])
+                                        .addParameter("meth", arr[10])
+                                        .addParameter("gen", arr[11])
+                                        .addParameter("spec", arr[12])
+                                        .addParameter("spau", arr[13])
+                                        .addParameter("stax", arr[14])
+                                        .addParameter("stau", arr[15])
+                                        .addParameter("bio", arr[16])
+                                        .addParameter("mls", arr[17])
+                                        .addParameter("hist", arr[18])
+                                        .addParameter("pdoi", arr[19])
+                                        .addParameter("psid", arr[20])
+                                        .addParameter("prov", arr[21])
+                                        .addParameter("csid", arr[22])
+                                        .addParameter("cmid", arr[23])
+                                        .addParameter("csit", arr[24])
+                                        .addParameter("clat", arr[25])
+                                        .addParameter("clon", arr[26])
+                                        .addParameter("cunc", arr[27])
+                                        .addParameter("cdum", arr[28])
+                                        .addParameter("cgrf", arr[29])
+                                        .addParameter("cele", arr[30].length() == 0 ? null : arr[30])
+                                        .addParameter("cdat", arr[31])
+                                        .addParameter("csrc", arr[32])
+                                        .addParameter("ance", arr[33])
+                                        .executeUpdate();
+                                break;
+                            case "targets":
+                                conn.createQuery(queryTargetsV2)
+                                        .addParameter("sid", arr[0])
+                                        .addParameter("val", arr[1])
+                                        .addParameter("tkws", arr[2])
+                                        .executeUpdate();
+                                break;
+                        }
                     }
                 }
             }
