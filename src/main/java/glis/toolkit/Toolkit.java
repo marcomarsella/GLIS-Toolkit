@@ -247,8 +247,10 @@ public class Toolkit {
             Map<String, Object> pgrfa = select(conn -> conn.createQuery("select * from pgrfas where id=:id").addParameter("id", new BigInteger(id))).get(0);
 
             // Save values to be used in response object
-            String wiews = pgrfa.get("hold_wiews").toString();
-            String pid = pgrfa.get("hold_pid").toString();
+            Object temp = pgrfa.get("hold_wiews");
+            String wiews = null;
+            if (temp != null) wiews = temp.toString();
+            String pid = pgrfa.get("hold_pid").toString();  //This one is never null
 
             // Build the XML document according to the DB version
             Document doc = null;
@@ -294,7 +296,7 @@ public class Toolkit {
 
                 // Write to DOI log if it has been created, if successful and operation is "register"
                 if ((fDOI != null) && Objects.equals(operation, "register") && Objects.equals(result, "OK")) {
-                    fDOI.write(wiews + "\t" + pid + "\t" + genus + "\t" + sampleId + "\t" + doi + "\n");
+                    fDOI.write((wiews != null ? wiews : "") + "\t" + pid + "\t" + genus + "\t" + sampleId + "\t" + doi + "\n");
                 }
 
                 // Write result to DB and mark pgrfas row as processed
