@@ -2,7 +2,6 @@
 toolkit.iml
 toolkit.jar
 db.jar
-config.txt
 local/
 db/
 target/

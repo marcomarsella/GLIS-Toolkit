@@ -1,0 +1,64 @@
+# Toolkit configuration file V3
+
+# Database access parameters
+
+################################################
+# JDBC URL of the database used by the Toolkit #
+################################################
+# URL for the embedded database
+db.url         = jdbc:hsqldb:file:db/glistk
+
+# If you do not want to use the embedded database, change db.url above to the URL of your own database.
+# Below examples for mySQL and postgres. Make sure to adjust to match your settings!
+#db.url         = jdbc:mysql://glistk:3306/glistk_v1?useUnicode=true&characterEncoding=utf-8
+#db.url         = jdbc:postgresql://glis:5432/glistk
+
+# Optionally specify the DB schema to be prepended to all table names in the Toolkit queries
+#db.schema = glistk
+
+# Database acces username and password. The embedded database accepts glistk/glistk
+# Otherwise enter username and password of your own Toolkit database
+db.username = glistk
+db.password = glistk
+
+# Maximum number of pgrfas rows to be processed in a single run of the Toolkit
+db.query_limit = 100
+
+#DB schema version
+# 1: full database (default)
+# 2: simplified database
+db.version = 2
+
+# This is the production GLIS URL for ex situ materials
+# Note the constype parameter. If not indicated, constype is assume to be 'ex' for backward compatibility
+# The two URLs below are therefore equivalent
+#glis.url       = https://ssl.fao.org/glis/xml/manager
+#glis.url       = https://ssl.fao.org/glis/xml/manager?constype=ex
+
+# This is the production GLIS URL for in situ materials
+# The constype parameter is required in this case
+#glis.url       = https://ssl.fao.org/glis/xml/manager?constype=in
+
+# These are equivalent test GLIS URLs for ex situ materials
+glis.url       = https://glistest.planttreaty.org/glis/xml/manager
+glis.url       = https://glistest.planttreaty.org/glis/xml/manager?constype=ex
+
+# This is the test GLIS URLs for in situ materials
+glis.url       = https://glistest.planttreaty.org/glis/xml/manager?constype=in
+
+# Username and password assigned by the GLIS System Administrator to your Toolkit
+# These are not the same as those you use to login to Easy-SMTA or to GLIS as web user
+# They are likely different between test and production GLIS
+glis.username  = irri
+glis.password  = Passw0rd
+
+# Produce a TAB-separated text file named <Timestamp of execution start>_DOI.txt with the following columns
+#   WIEWS code of the holder passed in pgrfas.holdwiews
+#   Easy-SMTA PID of the holder passed in pgrfas.holdpid
+#   Genus passed in pgrfas.genus
+#   Sample ID passed in pgrfas.sample_ID
+#   The newly assigned DOI
+# The file contains only successful registrations. Updates are not written to the file. This file may be used to more
+# easily gather newly assigned DOIs rather than looking into the results table (that is always written to)
+# Accepted values are y/n
+doi.log = y

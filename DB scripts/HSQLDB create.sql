@@ -37,10 +37,10 @@ CREATE TABLE pgrfas (
   coll_georef varchar(16) DEFAULT NULL,
   coll_elevation int DEFAULT NULL,
   coll_date varchar(10) DEFAULT NULL,
-  ancestry varchar(32768),
+  ancestry varchar(65536),
   coll_source char(2) DEFAULT NULL,
   historical char(1) DEFAULT NULL,
-  progdois varchar(128) DEFAULT NULL
+  progdois varchar(65536) DEFAULT NULL
 );
 
 CREATE TABLE actors (
