@@ -7,12 +7,9 @@ import org.apache.commons.configuration2.builder.fluent.Configurations;
 import org.apache.http.HttpStatus;
 import org.apache.http.client.HttpClient;
 import org.apache.http.conn.ssl.NoopHostnameVerifier;
-import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
 import org.apache.http.conn.ssl.TrustSelfSignedStrategy;
-import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.ssl.SSLContextBuilder;
-import org.apache.http.ssl.SSLContexts;
 import org.joox.Match;
 import org.sql2o.Connection;
 import org.sql2o.Query;
@@ -139,11 +136,12 @@ public class Toolkit {
     String dbUsername;
     String dbPassword;
     String dbVersion;
+    String consType;
     Integer qlimit;
     Sql2o sql2o;
 
     Toolkit(PropertiesConfiguration config, boolean doiLog) throws Exception {
-        glisUrl = config.getString("glis.url");
+        glisUrl = config.getString("glis.url").replaceAll("\\s+","").toLowerCase();   //Remove any whitespace and convert to lowercase
         qlimit = Integer.parseInt(config.getString("db.query_limit"));
         glisUsername = config.getString("glis.username");
         glisPassword = config.getString("glis.password");
@@ -164,6 +162,14 @@ public class Toolkit {
         dbVersion = config.getString("db.version");
         dbVersion = ((dbVersion != null) && (!dbVersion.isEmpty())) ? dbVersion : "1";
 
+        //Set consType from URL
+        int pos = glisUrl.indexOf("constype=");
+        if (pos > 0) { //glisURL contains constype
+            String temp = glisUrl.substring(pos);
+            consType = temp.substring(9);   //Get whatever is after the equal sign
+        } else {
+            consType = "ex";    //constype not provided, defaults to "ex"
+        }
         //Print configuration to both the console and to errors.txt
         String configuration = "Configuration\n" +
                 "Database URL:      [" + dbUrl + "]\n" +
@@ -175,6 +181,7 @@ public class Toolkit {
                 "GLIS URL:          [" + glisUrl + "]\n" +
                 "GLIS username:     [" + glisUsername + "]\n" +
                 "GLIS password:     [" + glisPassword + "]\n" +
+                "constype:          [" + consType + "]\n" +
                 "Write DOI log:     [" + (doiLog ? "Yes" : "No") + "]\n";
         System.err.println(configuration);
 
@@ -262,7 +269,8 @@ public class Toolkit {
             }
 
             // Transform XML using the XSL stylesheet and then transform again removing all empty elements
-            Document request = transform(doc, "transform.xsl");
+            String xslName = "transform-"+consType+".xsl";  //Build XSL template name from constype
+            Document request = transform(doc, xslName);
             request = transform(request, "prune.xsl");
             String xmlRequest = $(request).toString();
 
@@ -273,6 +281,7 @@ public class Toolkit {
                         .body(xmlRequest)
                         .asString();
                 String xmlResponse = httpResponse.getBody();
+                //DEBUG System.err.println(xmlResponse);
                 Document response = $(xmlResponse).document();
 
                 // Extract relevant information, if available
@@ -342,7 +351,7 @@ public class Toolkit {
     Document buildDocumentV2(String sid, Map<String, Object> pgrfa, Map<String, Object> conf) throws ParserConfigurationException {
 
         // Get related rowsets
-        List<Map<String, Object>> actors = select(conn -> conn.createQuery("select * from " + dbSchema + "actors       where sample_id=:sid").addParameter("sid", sid));
+        List<Map<String, Object>> actors = select(conn -> conn.createQuery("select * from " + dbSchema + "actors where sample_id=:sid").addParameter("sid", sid));
         List<Map<String, Object>> identifiers = select(conn -> conn.createQuery("select * from " + dbSchema + "identifiers where sample_id=:sid").addParameter("sid", sid));
         List<Map<String, Object>> names = select(conn -> conn.createQuery("select * from " + dbSchema + "names where sample_id=:pgrfa_id").addParameter("pgrfa_id", sid));
         List<Map<String, Object>> targets = select(conn -> conn.createQuery("select * from " + dbSchema + "targets where sample_id=:sid").addParameter("sid", sid));
