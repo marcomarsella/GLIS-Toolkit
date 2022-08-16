@@ -277,7 +277,8 @@ public class Toolkit {
             // Attempts the HTTPS POST transaction to GLIS and obtains result
             try {
                 HttpResponse<String> httpResponse = Unirest.post(glisUrl)
-                        .header("accept", "application/xml")
+                        .header("Accept", "application/xml")
+                        .header("User-Agent", "GLISTK/3.0 GLIS-Toolkit version 3.0")
                         .body(xmlRequest)
                         .asString();
                 String xmlResponse = httpResponse.getBody();

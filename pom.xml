@@ -8,7 +8,7 @@
 
   <groupId>glis</groupId>
   <artifactId>toolkit</artifactId>
-  <version>2.0</version>
+  <version>3.0</version>
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>

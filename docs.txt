@@ -5,4 +5,5 @@ openssl s_client -connect glis:443 | openssl x509 -out glis.cert
 //Install certificate into keystore (password for keystore is changeit)
 sudo keytool -import -alias glis -file glis.cert -keystore  /Library/Java/JavaVirtualMachines/jdk1.8.0_201.jdk/Contents/Home/jre/lib/security/cacerts
 
+//cacerts file for MinisForum server is /etc/ssl/certs/java/cacerts
 
