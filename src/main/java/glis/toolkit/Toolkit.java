@@ -6,8 +6,11 @@ import org.apache.commons.configuration2.PropertiesConfiguration;
 import org.apache.commons.configuration2.builder.fluent.Configurations;
 import org.apache.http.HttpStatus;
 import org.apache.http.client.HttpClient;
+import org.apache.http.client.config.CookieSpecs;
+import org.apache.http.client.config.RequestConfig;
 import org.apache.http.conn.ssl.NoopHostnameVerifier;
 import org.apache.http.conn.ssl.TrustSelfSignedStrategy;
+import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.ssl.SSLContextBuilder;
 import org.joox.Match;
@@ -116,7 +119,7 @@ public class Toolkit {
 
     private static void help() {
         final String[] help = {
-            "\nThis is the GLIS Integration Toolkit 3.0\n",
+            "\nThis is the GLIS Integration Toolkit 4.0\n",
             "The following commands are accepted:",
             "java -jar toolkit.jar process\n     Processes registrations and updates\n",
             "java -jar toolkit.jar zapdb\n     Empties the Toolkit DB\n",
@@ -185,7 +188,7 @@ public class Toolkit {
                 "Write DOI log:     [" + (doiLog ? "Yes" : "No") + "]\n";
         System.err.println(configuration);
 
-        System.err.println("Toolkit version: 3.0.0");
+        System.err.println("Toolkit version: 4.0.1");
 
         if (!dbUrl.contains(":hsqldb:")) {  //If we are not using the embedded database
             loadDriver();
@@ -228,6 +231,16 @@ public class Toolkit {
         conf.put("glis_username", glisUsername);
         conf.put("glis_password", glisPassword);
 
+        //Build custom HTTP Client to avoid errors with AWS cookies
+        RequestConfig requestConfig = RequestConfig.custom().setCookieSpec(CookieSpecs.STANDARD).build();
+        HttpClient customHttpClient = HttpClientBuilder.create()
+                .setDefaultRequestConfig(requestConfig)
+                .setSSLHostnameVerifier(new NoopHostnameVerifier())
+                .build();
+        Unirest.setHttpClient(customHttpClient);
+
+/*
+        //DISABLED
         // For GLIS test server, disable SSL checking if the Java version is not recent enough
         if (glisUrl.contains("glistest")) {
             String version = Runtime.class.getPackage().getImplementationVersion();
@@ -243,8 +256,10 @@ public class Toolkit {
                 HttpClient customHttpClient = HttpClients.custom().setSSLContext(sslContext)
                         .setSSLHostnameVerifier(new NoopHostnameVerifier()).build();
                 Unirest.setHttpClient(customHttpClient);
+                System.out.println("Custom HTTP Client created ");
             }
         }
+*/
 
         // Process each pgrfa in the list obtained by the query
         Integer count = 0;
@@ -278,7 +293,7 @@ public class Toolkit {
             try {
                 HttpResponse<String> httpResponse = Unirest.post(glisUrl)
                         .header("Accept", "application/xml")
-                        .header("User-Agent", "GLISTK/3.0 GLIS-Toolkit version 3.0")
+                        .header("User-Agent", "GLISTK/4.0 GLIS-Toolkit version 4.0")
                         .body(xmlRequest)
                         .asString();
                 String xmlResponse = httpResponse.getBody();
