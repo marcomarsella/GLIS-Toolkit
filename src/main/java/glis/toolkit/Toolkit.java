@@ -755,9 +755,11 @@ public class Toolkit {
         final String[] identifiersV2Cols = {"SAMPLE_ID","TYPE","VALUE"};
         final String[] namesV2Cols = {"SAMPLE_ID","NAME_TYPE","NAME"};
         final String[] pgrfasV2Cols = {
-                "OPERATION","SAMPLE_ID","PROCESSED","SAMPLE_DOI","DATE","HOLD_WIEWS","HOLD_PID","HOLD_NAME","HOLD_ADDRESS","HOLD_COUNTRY","METHOD","GENUS","SPECIES",
-                "SP_AUTH","SUBTAXA","ST_AUTH","BIO_STATUS","MLS_STATUS","HISTORICAL","PROGDOIS","PROV_SID","PROVENANCE","COLL_SID","COLL_MISS_ID","COLL_SITE","COLL_LAT",
-                "COLL_LON","COLL_UNCERT","COLL_DATUM","COLL_GEOREF","COLL_ELEVATION","COLL_DATE","COLL_SOURCE","ANCESTRY"
+                "OPERATION","SAMPLE_ID","PROCESSED","SAMPLE_DOI","DATE","HOLD_WIEWS","HOLD_PID","HOLD_NAME",
+                "HOLD_ADDRESS","HOLD_COUNTRY","METHOD","GENUS","SPECIES","SP_AUTH","SUBTAXA","ST_AUTH","BIO_STATUS",
+                "MLS_STATUS","PROV_SID","PROVENANCE","COLL_SID","COLL_MISS_ID","COLL_SITE","COLL_LAT","COLL_LON",
+                "COLL_UNCERT","COLL_DATUM","COLL_GEOREF","COLL_ELEVATION","COLL_DATE","ANCESTRY","COLL_SOURCE",
+                "HISTORICAL","PROGDOIS","CONSTYPE","SITEPROT","CONSACTIONS"
         };
         final String[] targetsV2Cols = {"SAMPLE_ID","VALUE","TKWS"};
 
@@ -766,8 +768,8 @@ public class Toolkit {
         final String queryIdentifiersV2 = "insert into " + dbSchema + "identifiers (SAMPLE_ID,TYPE,VALUE) values(:sid,:type,:val)";
         final String queryNamesV2       = "insert into " + dbSchema + "names (SAMPLE_ID,NAME_TYPE,NAME) values(:sid,:type,:name)";
         final String queryPgrfasV2      = "insert into " + dbSchema +
-                "pgrfas (OPERATION,SAMPLE_ID,PROCESSED,SAMPLE_DOI,DATE,HOLD_WIEWS,HOLD_PID,HOLD_NAME,HOLD_ADDRESS,HOLD_COUNTRY,METHOD,GENUS,SPECIES,SP_AUTH,SUBTAXA,ST_AUTH,BIO_STATUS,MLS_STATUS,HISTORICAL,PROGDOIS,PROV_SID,PROVENANCE,COLL_SID,COLL_MISS_ID,COLL_SITE,COLL_LAT,COLL_LON,COLL_UNCERT,COLL_DATUM,COLL_GEOREF,COLL_ELEVATION,COLL_DATE,COLL_SOURCE,ANCESTRY) " +
-                "values(:oper,:sid,:proc,:sdoi,:date,:hwiews,:hpid,:hname,:hadd,:hcty,:meth,:gen,:spec,:spau,:stax,:stau,:bio,:mls,:hist,:pdoi,:psid,:prov,:csid,:cmid,:csit,:clat,:clon,:cunc,:cdum,:cgrf,:cele,:cdat,:csrc,:ance)";
+                "pgrfas (OPERATION,SAMPLE_ID,PROCESSED,SAMPLE_DOI,DATE,HOLD_WIEWS,HOLD_PID,HOLD_NAME,HOLD_ADDRESS,HOLD_COUNTRY,METHOD,GENUS,SPECIES,SP_AUTH,SUBTAXA,ST_AUTH,BIO_STATUS,MLS_STATUS,PROV_SID,PROVENANCE,COLL_SID,COLL_MISS_ID,COLL_SITE,COLL_LAT,COLL_LON,COLL_UNCERT,COLL_DATUM,COLL_GEOREF,COLL_ELEVATION,COLL_DATE,ANCESTRY,COLL_SOURCE,HISTORICAL,PROGDOIS,CONSTYPE,SITEPROT,CONSACTIONS) " +
+                "values(:oper,:sid,:proc,:sdoi,:date,:hwiews,:hpid,:hname,:hadd,:hcty,:meth,:gen,:spec,:spau,:stax,:stau,:bio,:mls,:psid,:prov,:csid,:cmid,:csit,:clat,:clon,:cunc,:cdum,:cgrf,:cele,:cdat,:ance,:csrs,:hist,:pdois,:ctype,:sproc,:cact)";
         final String queryTargetsV2      = "insert into " + dbSchema + "targets (SAMPLE_ID,VALUE,TKWS) values(:sid,:val,:tkws)";
 
         try (Connection conn = sql2o.open()) {
@@ -854,22 +856,25 @@ public class Toolkit {
                                         .addParameter("stau", arr[15])
                                         .addParameter("bio", arr[16])
                                         .addParameter("mls", arr[17])
-                                        .addParameter("hist", arr[18])
-                                        .addParameter("pdoi", arr[19])
-                                        .addParameter("psid", arr[20])
-                                        .addParameter("prov", arr[21])
-                                        .addParameter("csid", arr[22])
-                                        .addParameter("cmid", arr[23])
-                                        .addParameter("csit", arr[24])
-                                        .addParameter("clat", arr[25])
-                                        .addParameter("clon", arr[26])
-                                        .addParameter("cunc", arr[27])
-                                        .addParameter("cdum", arr[28])
-                                        .addParameter("cgrf", arr[29])
-                                        .addParameter("cele", arr[30].length() == 0 ? null : arr[30])
-                                        .addParameter("cdat", arr[31])
-                                        .addParameter("csrc", arr[32])
-                                        .addParameter("ance", arr[33])
+                                        .addParameter("psid", arr[18])
+                                        .addParameter("prov", arr[19])
+                                        .addParameter("csid", arr[20])
+                                        .addParameter("cmid", arr[21])
+                                        .addParameter("csit", arr[22])
+                                        .addParameter("clat", arr[23])
+                                        .addParameter("clon", arr[24])
+                                        .addParameter("cunc", arr[25])
+                                        .addParameter("cdum", arr[26])
+                                        .addParameter("cgrf", arr[27])
+                                        .addParameter("cele", arr[28].length() == 0 ? null : arr[28])
+                                        .addParameter("cdat", arr[29])
+                                        .addParameter("ance", arr[30])
+                                        .addParameter("csrs", arr[31])
+                                        .addParameter("hist", arr[32])
+                                        .addParameter("pdois", arr[33])
+                                        .addParameter("ctype", arr[34])
+                                        .addParameter("sproc", arr[35])
+                                        .addParameter("cact", arr[36])
                                         .executeUpdate();
                                 break;
                             case "targets":

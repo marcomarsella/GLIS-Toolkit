@@ -7,3 +7,7 @@ sudo keytool -import -alias glis -file glis.cert -keystore  /Library/Java/JavaVi
 
 //cacerts file for MinisForum server is /etc/ssl/certs/java/cacerts
 
+//To compile the source
+mvn clean compile assembly:single
+
+Then take the .jar file from the target directory
