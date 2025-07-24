@@ -188,7 +188,7 @@ public class Toolkit {
                 "Write DOI log:     [" + (doiLog ? "Yes" : "No") + "]\n";
         System.err.println(configuration);
 
-        System.err.println("Toolkit version: 4.0.1");
+        System.err.println("Toolkit version: 4.0.2");
 
         if (!dbUrl.contains(":hsqldb:")) {  //If we are not using the embedded database
             loadDriver();

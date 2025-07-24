@@ -69,21 +69,28 @@
 				</xsl:for-each>
 			</ids>
 
-			<xsl:if test="/root/actor[role = 'pr']">
-				<acquisition>
-					<xsl:for-each select="/root/actor[role = 'pr']">
-						<provider>
-							<wiews><xsl:value-of select="wiews"/></wiews>
-							<pid><xsl:value-of select="pid"/></pid>
-							<name><xsl:value-of select="name"/></name>
-							<address><xsl:value-of select="address"/></address>
-							<country><xsl:value-of select="country"/></country>
-						</provider>
-					</xsl:for-each>
-					<sampleid><xsl:value-of select="prov_sid"/></sampleid>
-					<provenance><xsl:value-of select="provenance"/></provenance>
-				</acquisition>
-			</xsl:if>
+			<xsl:choose>
+				<xsl:when test="/root/actor[role = 'pr']">
+					<acquisition>
+						<xsl:for-each select="/root/actor[role = 'pr']">
+							<provider>
+								<wiews><xsl:value-of select="wiews"/></wiews>
+								<pid><xsl:value-of select="pid"/></pid>
+								<name><xsl:value-of select="name"/></name>
+								<address><xsl:value-of select="address"/></address>
+								<country><xsl:value-of select="country"/></country>
+							</provider>
+						</xsl:for-each>
+						<sampleid><xsl:value-of select="prov_sid"/></sampleid>
+						<provenance><xsl:value-of select="provenance"/></provenance>
+					</acquisition>
+				</xsl:when>
+				<xsl:when test="normalize-space(provenance) != ''">
+					<acquisition>
+						<provenance><xsl:value-of select="provenance"/></provenance>
+					</acquisition>
+				</xsl:when>
+			</xsl:choose>
 
 			<collection>
 				<xsl:if test="/root/actor[role = 'co']">
